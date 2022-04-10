@@ -1,0 +1,17 @@
+imports:
+    - { resource: contexts/* }
+
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+#        bind:
+#            Symfony\Component\Messenger\Transport\Sender\SenderInterface $reliableSender: '@messenger.transport.outbox'
+
+    Shared\Infrastructure\:
+        resource: '../src/_Shared/Infrastructure'
+
+#    Shared\Infrastructure\Messenger\OutboxProcessor:
+#        autoconfigure: false
+#        tags:
+#            - { name: messenger.message_handler, handles: '*' }

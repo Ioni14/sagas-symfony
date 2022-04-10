@@ -1,0 +1,17 @@
+parameters:
+
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+        bind:
+            Psr\Log\LoggerInterface: '@monolog.logger.shipping'
+
+    Shipping\Application\:
+        resource: '../../src/Shipping/Application'
+    Shipping\Infrastructure\:
+        resource: '../../src/Shipping/Infrastructure'
+
+#    Shipping\Application\ShippingPolicy:
+#        tags:
+#            - { name: 'messenger.handler' }

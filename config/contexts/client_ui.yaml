@@ -1,0 +1,13 @@
+parameters:
+
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+        bind:
+            Psr\Log\LoggerInterface: '@monolog.logger.client_ui'
+
+    ClientUI\Application\:
+        resource: '../../src/ClientUI/Application'
+    ClientUI\Infrastructure\:
+        resource: '../../src/ClientUI/Infrastructure'

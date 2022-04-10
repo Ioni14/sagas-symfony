@@ -1,0 +1,22 @@
+version: '3.5'
+services:
+    mariadb:
+        image: mariadb:10.6.4
+        hostname: mariadb
+        environment:
+            MYSQL_ROOT_PASSWORD: root
+        ports:
+            - '13306:3306'
+        volumes:
+            - mariadb:/var/lib/mysql
+    rabbitmq:
+        image: rabbitmq:management-alpine
+        hostname: rabbitmq
+        ports:
+            - '8100:15672'
+            - '5672:5672'
+        volumes:
+            - rabbitmq:/var/lib/rabbitmq
+volumes:
+    rabbitmq: ~
+    mariadb: ~

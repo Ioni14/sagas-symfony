@@ -1,0 +1,2 @@
+monolog:
+    channels: [billing,sales,shipping,client_ui]

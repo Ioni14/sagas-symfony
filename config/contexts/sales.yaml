@@ -1,0 +1,13 @@
+parameters:
+
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+        bind:
+            Psr\Log\LoggerInterface: '@monolog.logger.sales'
+
+    Sales\Application\:
+        resource: '../../src/Sales/Application'
+    Sales\Infrastructure\:
+        resource: '../../src/Sales/Infrastructure'

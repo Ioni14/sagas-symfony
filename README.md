@@ -3,7 +3,7 @@ https://docs.particular.net/tutorials/nservicebus-sagas/
 
 On peut penser à un Saga comme des règles à suivre (policies) car l'utilisation principale est de décider quoi faire à chaque nouveau message.
 
-Par convention on va utiliser le suffixe Policy pour nos Sagas. Exemple: ShippingPolicy qui requiert que la commande soit à la fois "Placed" et "Billed" avant de l'envoyer.
+Par convention on va utiliser le suffixe Policy pour nos Sagas "Observer". Exemple: ShippingPolicy qui requiert que la commande soit à la fois "Placed" et "Billed" avant de l'envoyer. Et le suffixe Workflow pour nos Sagas "Commander".
 
     composer install
 
@@ -17,6 +17,7 @@ Par convention on va utiliser le suffixe Policy pour nos Sagas. Exemple: Shippin
     bin/console messenger:consume sales_events -vv
     bin/console messenger:consume billing_events -vv
     bin/console messenger:consume shipping_commands -vv
+    bin/console messenger:consume shipping_events -vv
     bin/console app:place-order 00000000-0000-0000-0000-000000000001 -vv
     # Cancel within 5 seconds... or not.
     bin/console app:cancel-order 00000000-0000-0000-0000-000000000001 -vv

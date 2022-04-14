@@ -5,9 +5,6 @@ namespace Sales\Application;
 use Shared\Application\SagaState;
 use Symfony\Component\Uid\Ulid;
 
-/**
- * @internal
- */
 final class BuyersRemorseState extends SagaState
 {
     public Ulid $orderId;
@@ -25,7 +22,7 @@ final class BuyersRemorseState extends SagaState
     {
         return [
             'id' => $this->id?->toBinary(),
-            'correlation_order_id' => $this->orderId?->toBinary(),
+            'correlation_order_id' => $this->orderId->toBinary(),
             'state' => json_encode([
             ]),
         ];

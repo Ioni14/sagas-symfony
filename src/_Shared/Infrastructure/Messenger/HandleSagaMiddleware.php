@@ -28,12 +28,6 @@ class HandleSagaMiddleware implements MiddlewareInterface
 
     public function handle(Envelope $envelope, StackInterface $stack): Envelope
     {
-//        if (!$envelope->last(ReceivedStamp::class)) {
-//            return $stack->next()->handle($envelope, $stack);
-//        }
-
-        dump('HandleSagaMiddleware');
-
         $handler = null;
         $message = $envelope->getMessage();
 
@@ -57,6 +51,8 @@ class HandleSagaMiddleware implements MiddlewareInterface
 
                 // TODO : PR Symfony pour $message = $this->eventDispatcher->dispatch(new BeforeHandleMessage($message, $envelope));
                 // => on peut listen pour return new SagaContext($message, $sagaContextStamp->sagaId);
+
+                // TODO : une autre idée à l'arrache : un handler dynamique $handler = [new Saga(stamp->$sagaId, ...), '__invoke'];
 
                 /** @var SagaContextStamp $sagaContextStamp */
                 if ($sagaContextStamp = $envelope->last(SagaContextStamp::class)) {

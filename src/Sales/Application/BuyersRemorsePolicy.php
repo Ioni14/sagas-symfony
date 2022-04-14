@@ -39,7 +39,7 @@ class BuyersRemorsePolicy extends Saga
         ]);
 
         // on s'envoie un message à nous-mêmes dans le futur
-        $this->timeout($this->eventBus, $state, 5_000, new BuyersRemorseIsOver());
+        $this->timeout($this->eventBus, $state, \DateInterval::createFromDateString('5 sec'), new BuyersRemorseIsOver());
     }
 
     protected function handleBuyersRemorseIsOver(BuyersRemorseIsOver $timeout, BuyersRemorseState $state, SagaContext $sagaContext): void

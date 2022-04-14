@@ -17,8 +17,7 @@ abstract class Saga implements MessageSubscriberInterface, LoggerAwareInterface
 
     public function __construct(
         private readonly string $stateClass,
-    )
-    {
+    ) {
         $this->logger = new NullLogger();
     }
 
@@ -28,11 +27,10 @@ abstract class Saga implements MessageSubscriberInterface, LoggerAwareInterface
             // les messages qui démarrent un saga (si ce n'est pas un SagaContext c'est que le message ne vient pas d'un Saga ET que ce saga le gère => donc on le wrap simplement pour le considérer maintenant comme un saga context)
             $sagaContext = new SagaContext($sagaContext);
         }
-        dump($sagaContext);
+
         $shortClassName = substr($sagaContext->message::class, strrpos($sagaContext->message::class, '\\') + 1);
 
         $state = $this->findState($sagaContext->message, $sagaContext->sagaId);
-        dump('state', $state);
         if (!$state) {
             // nouveau Saga
             if (!$this->canStartSaga($sagaContext->message)) {
@@ -42,6 +40,11 @@ abstract class Saga implements MessageSubscriberInterface, LoggerAwareInterface
                 // TODO : call implement SagaNotFoundHandlerInterface::onSagaNotFound() ?
 
                 // TODO : gère multiple Saga pour un même type de message ?
+                $this->logger->info('No saga {sagaName} found for message {message}, ignoring since the saga has been marked as complete before the timeout fired.', [
+                    'message' => $sagaContext->message,
+                    'sagaName' => static::class,
+                    'sagaId' => $sagaContext->sagaId,
+                ]);
                 return;
             }
             if (!is_a($this->stateClass, SagaState::class, true)) {
@@ -104,9 +107,12 @@ abstract class Saga implements MessageSubscriberInterface, LoggerAwareInterface
         $bus->dispatch($message, [new SagaContextStamp($state->id), ...$stamps]);
     }
 
-    protected function timeout(MessageBusInterface $bus, SagaState $state, int $delay, object $message, array $stamps = []): void
+    /**
+     * TODO : improve $delay param, maybe a configurator / builder ?
+     */
+    protected function timeout(MessageBusInterface $bus, SagaState $state, \DateInterval $delay, object $message, array $stamps = []): void
     {
-        $this->publish($bus, $state, $message, [new DelayStamp($delay), ...$stamps]);
+        $this->publish($bus, $state, $message, [DelayStamp::delayFor($delay), ...$stamps]);
     }
 
     abstract protected function canStartSaga(object $message): bool;

@@ -2,7 +2,7 @@
 
 namespace Sales\Domain\Command;
 
-class PlaceOrder
+final class PlaceOrder
 {
     public function __construct(
         public readonly string $orderId,

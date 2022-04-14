@@ -1,8 +1,8 @@
 <?php
 
-namespace Shipping\Domain\Command;
+namespace Shipping\Application\Command;
 
-final class ShipOrder
+final class ShipWithMaple
 {
     public function __construct(
         public readonly string $orderId,

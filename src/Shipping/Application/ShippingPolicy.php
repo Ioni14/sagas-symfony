@@ -11,7 +11,6 @@ use Shared\Application\SagaState;
 use Shipping\Domain\Command\ShipOrder;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Uid\Ulid;
-use Symfony\Component\Uid\Uuid;
 
 /**
  * An order is shipped when it is both accepted and billed.
@@ -95,7 +94,7 @@ class ShippingPolicy extends Saga
     protected function deleteState(SagaState $state): void
     {
         $this->dbConnection->delete('shipping_policy_state', [
-            'id' => Uuid::fromString($state->id)->toBinary(),
+            'id' => $state->id->toBinary(),
         ]);
     }
 }

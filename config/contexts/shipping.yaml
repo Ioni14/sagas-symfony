@@ -5,7 +5,7 @@ services:
         autowire: true
         autoconfigure: true
         bind:
-            Psr\Log\LoggerInterface: '@monolog.logger.shipping'
+#            Psr\Log\LoggerInterface: '@monolog.logger.shipping'
 
     Shipping\Application\:
         resource: '../../src/Shipping/Application'

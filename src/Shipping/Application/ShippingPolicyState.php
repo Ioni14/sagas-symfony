@@ -5,9 +5,6 @@ namespace Shipping\Application;
 use Shared\Application\SagaState;
 use Symfony\Component\Uid\Ulid;
 
-/**
- * @internal
- */
 final class ShippingPolicyState extends SagaState
 {
     public Ulid $orderId;

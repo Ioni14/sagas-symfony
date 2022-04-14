@@ -1,8 +1,8 @@
 <?php
 
-namespace Shipping\Domain\Command;
+namespace Shipping\Application\Event;
 
-final class ShipOrder
+class ShipmentFailed
 {
     public function __construct(
         public readonly string $orderId,

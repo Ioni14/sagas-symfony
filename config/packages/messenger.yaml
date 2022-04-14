@@ -21,6 +21,8 @@ framework:
                 dsn: '%env(SALES_EVENTS_TRANSPORT_DSN)%'
             sales_commands:
                 dsn: '%env(SALES_COMMANDS_TRANSPORT_DSN)%'
+            shipping_events:
+                dsn: '%env(SHIPPING_EVENTS_TRANSPORT_DSN)%'
             shipping_commands:
                 dsn: '%env(SHIPPING_COMMANDS_TRANSPORT_DSN)%'
         routing:
@@ -30,6 +32,11 @@ framework:
             Sales\Domain\Command\CancelOrder: sales_commands
             Sales\Application\BuyersRemorseIsOver: sales_events
             Shipping\Domain\Command\ShipOrder: shipping_commands
+            Shipping\Application\Command\ShipWithMaple: shipping_commands
+            Shipping\Application\Command\ShipWithAlpine: shipping_commands
+            Shipping\Application\Timeout\ShippingEscalation: shipping_events
+            Shipping\Application\Event\ShipmentAcceptedByMaple: shipping_events
+            Shipping\Application\Event\ShipmentFailed: shipping_events
 
         serializer:
             default_serializer: messenger.transport.symfony_serializer

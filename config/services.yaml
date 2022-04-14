@@ -15,3 +15,10 @@ services:
 #        autoconfigure: false
 #        tags:
 #            - { name: messenger.message_handler, handles: '*' }
+
+#    app.messenger.handle_saga:
+    messenger.middleware.handle_message:
+        abstract: true
+        class: Shared\Infrastructure\Messenger\HandleSagaMiddleware
+        arguments:
+            - !abstract defined in MessengerPass

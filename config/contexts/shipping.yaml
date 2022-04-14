@@ -9,8 +9,8 @@ services:
 
     Shipping\Application\:
         resource: '../../src/Shipping/Application'
-    Shipping\Infrastructure\:
-        resource: '../../src/Shipping/Infrastructure'
+#    Shipping\Infrastructure\:
+#        resource: '../../src/Shipping/Infrastructure'
 
 #    Shipping\Application\ShippingPolicy:
 #        tags:

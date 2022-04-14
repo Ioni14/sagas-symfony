@@ -5,9 +5,15 @@ services:
         autowire: true
         autoconfigure: true
         bind:
-            Psr\Log\LoggerInterface: '@monolog.logger.sales'
+#            Psr\Log\LoggerInterface: '@monolog.logger.sales'
 
     Sales\Application\:
         resource: '../../src/Sales/Application'
     Sales\Infrastructure\:
         resource: '../../src/Sales/Infrastructure'
+
+#    Sales\Application\BuyersRemorsePolicy:
+#        autoconfigure: false
+#        tags:
+#            - { name: 'messenger.message_handler', handles: Sales\Domain\Command\PlaceOrder }
+#            - { name: 'messenger.message_handler', handles: Sales\Application\BuyersRemorseIsOver }

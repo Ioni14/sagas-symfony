@@ -3,6 +3,7 @@
 namespace ClientUI\Infrastructure\Console;
 
 use Psr\Log\LoggerInterface;
+use Sales\Domain\Command\CancelOrder;
 use Sales\Domain\Command\PlaceOrder;
 use Shared\Application\SagaContext;
 use Shared\Infrastructure\Messenger\SagaContextStamp;
@@ -14,8 +15,8 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Uid\Ulid;
 
-#[AsCommand('app:place-order')]
-class PlaceOrderCommand extends Command
+#[AsCommand('app:cancel-order')]
+class CancelOrderCommand extends Command
 {
     public function __construct(
         private LoggerInterface $logger,
@@ -26,16 +27,14 @@ class PlaceOrderCommand extends Command
 
     protected function configure(): void
     {
-        $this->addArgument('order_id', InputArgument::OPTIONAL);
+        $this->addArgument('order_id', InputArgument::REQUIRED);
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $orderId = $input->getArgument('order_id') ?? Ulid::generate();
+        $command = new CancelOrder(Ulid::fromString($input->getArgument('order_id'))->toRfc4122());
 
-        $command = new PlaceOrder(Ulid::fromString($orderId)->toRfc4122());
-
-        $this->logger->info('Sending PlaceOrder command, orderId={orderId}', [
+        $this->logger->info('Sending CancelOrder command, orderId={orderId}', [
             'orderId' => $command->orderId,
         ]);
 

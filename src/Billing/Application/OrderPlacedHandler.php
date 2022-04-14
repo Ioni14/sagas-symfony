@@ -20,11 +20,11 @@ class OrderPlacedHandler
     public function __invoke(OrderPlaced $event): void
     {
         $this->logger->info("Received OrderPlaced, orderId={orderId} - Charging credit card...", [
-            'orderId' => $event->getOrderId(),
+            'orderId' => $event->orderId,
         ]);
 
         // charge credit card ...
 
-        $this->eventBus->dispatch(new OrderBilled($event->getOrderId()));
+        $this->eventBus->dispatch(new OrderBilled($event->orderId));
     }
 }

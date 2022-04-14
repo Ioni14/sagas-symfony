@@ -4,7 +4,11 @@ framework:
         buses:
             event.bus:
                 default_middleware: allow_no_handlers
-            command.bus: ~
+                middleware:
+#                    - 'app.messenger.handle_saga'
+            command.bus:
+                middleware:
+#                    - 'app.messenger.handle_saga'
 
         failure_transport: failed
         transports:
@@ -17,12 +21,15 @@ framework:
                 dsn: '%env(SALES_EVENTS_TRANSPORT_DSN)%'
             sales_commands:
                 dsn: '%env(SALES_COMMANDS_TRANSPORT_DSN)%'
-#            shipping_events:
-#                dsn: '%env(SHIPPING_EVENTS_TRANSPORT_DSN)%'
+            shipping_commands:
+                dsn: '%env(SHIPPING_COMMANDS_TRANSPORT_DSN)%'
         routing:
             Billing\Domain\Event\OrderBilled: billing_events
             Sales\Domain\Event\OrderPlaced: sales_events
             Sales\Domain\Command\PlaceOrder: sales_commands
+            Sales\Domain\Command\CancelOrder: sales_commands
+            Sales\Application\BuyersRemorseIsOver: sales_events
+            Shipping\Domain\Command\ShipOrder: shipping_commands
 
         serializer:
             default_serializer: messenger.transport.symfony_serializer

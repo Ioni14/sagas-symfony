@@ -2,10 +2,12 @@
 
 namespace Shipping\Application\Command;
 
+use Symfony\Component\Uid\Ulid;
+
 final class ShipWithAlpine
 {
     public function __construct(
-        public readonly string $orderId,
+        public readonly Ulid $orderId,
     ) {
     }
 }

@@ -28,7 +28,7 @@ class ShipWithMapleHandler implements LoggerAwareInterface
         $waitingTime = mt_rand(1, self::MAX_TIME_MIGHT_RESPONSE);
 
         $this->logger->info('ShipWithMapleHandler: Delaying Order [{orderId}] {waitingTime} seconds.', [
-            'orderId' => $command->orderId,
+            'orderId' => $command->orderId->toRfc4122(),
             'waitingTime' => $waitingTime,
         ]);
 

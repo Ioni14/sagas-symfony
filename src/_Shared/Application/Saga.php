@@ -13,12 +13,34 @@ use Symfony\Component\Uid\Ulid;
 
 abstract class Saga implements MessageSubscriberInterface, LoggerAwareInterface
 {
+    /**
+     * TODO : inject good logger channel ?
+     */
     use LoggerAwareTrait;
 
     public function __construct(
-        private readonly string $stateClass,
-    ) {
+        private                       readonly string $stateClass,
+        private SagaProviderInterface $sagaProvider,
+    )
+    {
         $this->logger = new NullLogger();
+    }
+
+    final public static function getHandledMessages(): iterable
+    {
+        return array_merge(static::getHandleMessages(), static::getTimeoutMessages());
+    }
+
+    abstract protected static function getHandleMessages(): array;
+
+    protected static function getTimeoutMessages(): array
+    {
+        return [];
+    }
+
+    private function isTimeoutMessage(object $message): bool
+    {
+        return in_array($message::class, static::getTimeoutMessages(), true);
     }
 
     final public function __invoke(object $sagaContext): void
@@ -27,10 +49,15 @@ abstract class Saga implements MessageSubscriberInterface, LoggerAwareInterface
             // les messages qui démarrent un saga (si ce n'est pas un SagaContext c'est que le message ne vient pas d'un Saga ET que ce saga le gère => donc on le wrap simplement pour le considérer maintenant comme un saga context)
             $sagaContext = new SagaContext($sagaContext);
         }
+        $mapping = static::configureMapping();
 
         $shortClassName = substr($sagaContext->message::class, strrpos($sagaContext->message::class, '\\') + 1);
 
-        $state = $this->findState($sagaContext->message, $sagaContext->sagaId);
+        if ($this->isTimeoutMessage($sagaContext->message)) {
+            $state = $this->sagaProvider->findStateBySagaId($sagaContext->sagaId, $this->stateClass, $mapping);
+        } else {
+            $state = $this->sagaProvider->findStateByCorrelationId($sagaContext->message, $this->stateClass, $mapping);
+        }
         if (!$state) {
             // nouveau Saga
             if (!$this->canStartSaga($sagaContext->message)) {
@@ -50,18 +77,23 @@ abstract class Saga implements MessageSubscriberInterface, LoggerAwareInterface
             if (!is_a($this->stateClass, SagaState::class, true)) {
                 throw new \RuntimeException('State class must be a subclass of SagaState');
             }
-            /** @var SagaState $state */
-            $state = new ($this->stateClass);
+            $state = ($this->stateClass)::create();
             $state->id = new Ulid();
             // TODO : other metadata
 
-            // TODO : [Bonus] mapping state auto
-            $state->orderId = Ulid::fromString($sagaContext->message->orderId);
+            if (!property_exists($state, $mapping->stateCorrelationIdField())) {
+                throw new \RuntimeException('Saga state ' . $this->stateClass . ' does not have the mapped property ' . $mapping->stateCorrelationIdField() . '. Please check your Saga mapping.');
+            }
+            if (!property_exists($sagaContext->message, $mapping->messageCorrelationIdField($sagaContext->message::class))) {
+                throw new \RuntimeException('Saga message' . $sagaContext->message::class . ' does not have the mapped property ' . $mapping->messageCorrelationIdField($sagaContext->message::class) . '. Please check your Saga mapping.');
+            }
+            // TODO : Property Accessor ?
+            $state->{$mapping->stateCorrelationIdField()} = $sagaContext->message->{$mapping->messageCorrelationIdField($sagaContext->message::class)};
 
             $this->logger->info('A new Saga {sagaName} has started.', [
                 'sagaName' => static::class,
                 'sagaId' => $state->id,
-                'correlation_id' => $state->orderId,
+                'correlation_id' => $state->{$mapping->stateCorrelationIdField()},
             ]);
         }
 
@@ -73,7 +105,7 @@ abstract class Saga implements MessageSubscriberInterface, LoggerAwareInterface
         $this->logger->info('The Saga {sagaName} handles {message}.', [
             'sagaName' => static::class,
             'sagaId' => $state->id,
-            'correlation_id' => $state->orderId,
+            'correlation_id' => $state->{$mapping->stateCorrelationIdField()},
             'message' => $sagaContext->message,
         ]);
         try {
@@ -83,7 +115,7 @@ abstract class Saga implements MessageSubscriberInterface, LoggerAwareInterface
             $this->logger->error('The Saga {sagaName} has failed when handling {message} : {exception}', [
                 'sagaName' => static::class,
                 'sagaId' => $state->id,
-                'correlation_id' => $state->orderId,
+                'correlation_id' => $state->{$mapping->stateCorrelationIdField()},
                 'message' => $sagaContext->message,
                 'exception' => $e,
             ]);
@@ -91,25 +123,23 @@ abstract class Saga implements MessageSubscriberInterface, LoggerAwareInterface
         }
 
         if (!$sagaContext->isCompleted()) {
-            $this->saveState($state);
+            $this->sagaProvider->saveState($state);
         } else {
-            $this->deleteState($state);
+            $this->sagaProvider->deleteState($state);
             $this->logger->info('The Saga {sagaName} has been completed.', [
                 'sagaName' => static::class,
                 'sagaId' => $state->id,
-                'correlation_id' => $state->orderId,
+                'correlation_id' => $state->{$mapping->stateCorrelationIdField()},
             ]);
         }
     }
+
 
     protected function publish(MessageBusInterface $bus, SagaState $state, object $message, array $stamps = []): void
     {
         $bus->dispatch($message, [new SagaContextStamp($state->id), ...$stamps]);
     }
 
-    /**
-     * TODO : improve $delay param, maybe a configurator / builder ?
-     */
     protected function timeout(MessageBusInterface $bus, SagaState $state, \DateInterval $delay, object $message, array $stamps = []): void
     {
         $this->publish($bus, $state, $message, [DelayStamp::delayFor($delay), ...$stamps]);
@@ -117,10 +147,5 @@ abstract class Saga implements MessageSubscriberInterface, LoggerAwareInterface
 
     abstract protected function canStartSaga(object $message): bool;
 
-    // TODO : refacto avec un service SagaProviderInterface ?
-    abstract protected function findState(object $message, ?Ulid $sagaId): ?SagaState;
-
-    abstract protected function saveState(SagaState $state): void;
-
-    abstract protected function deleteState(SagaState $state): void;
+    abstract protected static function configureMapping(): SagaMapper;
 }

@@ -5,7 +5,9 @@ namespace Shipping\Application;
 use Doctrine\DBAL\Connection;
 use Shared\Application\Saga;
 use Shared\Application\SagaContext;
-use Shared\Application\SagaState;
+use Shared\Application\SagaMapper;
+use Shared\Application\SagaMapperBuilder;
+use Shared\Application\SagaProviderInterface;
 use Shipping\Application\Command\ShipWithAlpine;
 use Shipping\Application\Command\ShipWithMaple;
 use Shipping\Application\Event\ShipmentAcceptedByAlpine;
@@ -14,7 +16,6 @@ use Shipping\Application\Event\ShipmentFailed;
 use Shipping\Application\Timeout\ShippingEscalation;
 use Shipping\Domain\Command\ShipOrder;
 use Symfony\Component\Messenger\MessageBusInterface;
-use Symfony\Component\Uid\Ulid;
 
 /**
  * Try to ship to 3rd-party Maple Shipping Service,
@@ -27,19 +28,34 @@ class ShipOrderWorkflow extends Saga
         protected MessageBusInterface $commandBus,
         protected MessageBusInterface $eventBus,
         protected Connection $dbConnection,
+        SagaProviderInterface $sagaProvider
     ) {
-        parent::__construct(ShipOrderState::class);
+        parent::__construct(ShipOrderState::class, $sagaProvider);
     }
 
-    public static function getHandledMessages(): iterable
+    protected static function configureMapping(): SagaMapper
     {
-        return [ShipOrder::class, ShippingEscalation::class, ShipmentAcceptedByMaple::class, ShipmentAcceptedByAlpine::class];
+        return SagaMapperBuilder::stateCorrelationIdField('orderId')
+            ->messageCorrelationIdField(ShipOrder::class, 'orderId')
+            ->messageCorrelationIdField(ShipmentAcceptedByMaple::class, 'orderId')
+            ->messageCorrelationIdField(ShipmentAcceptedByAlpine::class, 'orderId')
+            ->build();
+    }
+
+    protected static function getHandleMessages(): array
+    {
+        return [ShipOrder::class, ShipmentAcceptedByMaple::class, ShipmentAcceptedByAlpine::class];
+    }
+
+    protected static function getTimeoutMessages(): array
+    {
+        return [ShippingEscalation::class];
     }
 
     protected function handleShipOrder(ShipOrder $command, ShipOrderState $state, SagaContext $sagaContext): void
     {
         $this->logger->info('ShipOrderWorkflow for Order {orderId} - Trying Maple first.', [
-            'orderId' => $command->orderId,
+            'orderId' => $command->orderId->toRfc4122(),
         ]);
 
         // Execute order to ship with Maple
@@ -58,7 +74,7 @@ class ShipOrderWorkflow extends Saga
         }
 
         $this->logger->info('Order [{orderId}] - Successfully shipped with Maple', [
-            'orderId' => $event->orderId,
+            'orderId' => $event->orderId->toRfc4122(),
         ]);
 
         $state->shipmentAcceptedByMaple = true;
@@ -70,7 +86,7 @@ class ShipOrderWorkflow extends Saga
     protected function handleShipmentAcceptedByAlpine(ShipmentAcceptedByAlpine $event, ShipOrderState $state, SagaContext $sagaContext): void
     {
         $this->logger->info('Order [{orderId}] - Successfully shipped with Alpine', [
-            'orderId' => $event->orderId,
+            'orderId' => $event->orderId->toRfc4122(),
         ]);
 
         $state->shipmentAcceptedByAlpine = true;
@@ -94,14 +110,14 @@ class ShipOrderWorkflow extends Saga
 
             $state->shipmentOrderSentToAlpine = true;
 //            $this->publish($this->commandBus, $state, new ShipWithAlpine($state->orderId->toRfc4122())); // TODO : if use Reply
-            $this->commandBus->dispatch(new ShipWithAlpine($state->orderId->toRfc4122()));
+            $this->commandBus->dispatch(new ShipWithAlpine($state->orderId));
             $this->timeout($this->commandBus, $state, \DateInterval::createFromDateString('20 sec'), new ShippingEscalation());
 
             return;
         }
 
         if (!$state->shipmentAcceptedByAlpine) {
-            $this->logger->warning("Order [{orderId}] - No answer from Maple/Alpine. We need to escalate!", [
+            $this->logger->warning('Order [{orderId}] - No answer from Maple/Alpine. We need to escalate!', [
                 'orderId' => $state->orderId,
             ]);
 
@@ -114,39 +130,5 @@ class ShipOrderWorkflow extends Saga
     protected function canStartSaga(object $message): bool
     {
         return $message instanceof ShipOrder;
-    }
-
-    protected function findState(object $message, ?Ulid $sagaId): ?ShipOrderState
-    {
-        if ($message instanceof ShipOrder || $message instanceof ShipmentAcceptedByMaple || $message instanceof ShipmentAcceptedByAlpine) {
-            $row = $this->dbConnection->fetchAssociative('SELECT * FROM ship_order_state WHERE correlation_order_id = :order_id', [
-                'order_id' => Ulid::fromString($message->orderId)->toBinary(),
-            ]);
-        } else {
-            // TODO : not configured mapping
-            $row = $this->dbConnection->fetchAssociative('SELECT * FROM ship_order_state WHERE id = :id', [
-                'id' => $sagaId?->toBinary(),
-            ]);
-        }
-        if (!$row) {
-            return null;
-        }
-
-        return ShipOrderState::fromRow($row);
-    }
-
-    protected function saveState(SagaState $state): void
-    {
-        $this->dbConnection->executeStatement(<<<SQL
-                INSERT INTO ship_order_state (id, correlation_order_id, state)
-                VALUES (:id, :correlation_order_id, :state) ON DUPLICATE KEY UPDATE state = :state
-            SQL, $state->toRow());
-    }
-
-    protected function deleteState(SagaState $state): void
-    {
-        $this->dbConnection->delete('ship_order_state', [
-            'id' => $state->id->toBinary(),
-        ]);
     }
 }

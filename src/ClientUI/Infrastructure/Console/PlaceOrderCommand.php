@@ -5,7 +5,6 @@ namespace ClientUI\Infrastructure\Console;
 use Psr\Log\LoggerInterface;
 use Sales\Domain\Command\PlaceOrder;
 use Shared\Application\SagaContext;
-use Shared\Infrastructure\Messenger\SagaContextStamp;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -33,10 +32,10 @@ class PlaceOrderCommand extends Command
     {
         $orderId = $input->getArgument('order_id') ?? Ulid::generate();
 
-        $command = new PlaceOrder(Ulid::fromString($orderId)->toRfc4122());
+        $command = new PlaceOrder(Ulid::fromString($orderId));
 
         $this->logger->info('Sending PlaceOrder command, orderId={orderId}', [
-            'orderId' => $command->orderId,
+            'orderId' => $command->orderId->toRfc4122(),
         ]);
 
         $this->commandBus->dispatch($command);

@@ -2,10 +2,12 @@
 
 namespace Shipping\Domain\Command;
 
+use Symfony\Component\Uid\Ulid;
+
 final class ShipOrder
 {
     public function __construct(
-        public readonly string $orderId,
+        public readonly Ulid $orderId,
     ) {
     }
 }

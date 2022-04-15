@@ -46,8 +46,6 @@ class HandleSagaMiddleware implements MiddlewareInterface
                 $handler = $handlerDescriptor->getHandler();
 
 
-                // les messages qui ont SagaContextStamp viennent forcément d'un Saga et sont traités par le même Saga
-                // TODO : on ne devrait pas ajouter le SagaContextStamp à la commande, mais que le Handler Saga l'ajoute lui-même à la réception (un middleware qui parcourt les Handler Saga au moment du receive)
 
                 // TODO : PR Symfony pour $message = $this->eventDispatcher->dispatch(new BeforeHandleMessage($message, $envelope));
                 // => on peut listen pour return new SagaContext($message, $sagaContextStamp->sagaId);

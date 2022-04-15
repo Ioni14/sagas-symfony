@@ -2,10 +2,12 @@
 
 namespace Shipping\Application\Event;
 
+use Symfony\Component\Uid\Ulid;
+
 class ShipmentFailed
 {
     public function __construct(
-        public readonly string $orderId,
+        public readonly Ulid $orderId,
     ) {
     }
 }

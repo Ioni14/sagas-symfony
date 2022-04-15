@@ -22,3 +22,5 @@ services:
         class: Shared\Infrastructure\Messenger\HandleSagaMiddleware
         arguments:
             - !abstract defined in MessengerPass
+
+    Shared\Application\SagaProviderInterface: '@Shared\Infrastructure\DoctrineSagaProvider'

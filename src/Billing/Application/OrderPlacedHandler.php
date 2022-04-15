@@ -20,7 +20,7 @@ class OrderPlacedHandler
     public function __invoke(OrderPlaced $event): void
     {
         $this->logger->info("Received OrderPlaced, orderId={orderId} - Charging credit card...", [
-            'orderId' => $event->orderId,
+            'orderId' => $event->orderId->toRfc4122(),
         ]);
 
         // charge credit card ...

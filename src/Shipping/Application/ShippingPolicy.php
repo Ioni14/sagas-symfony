@@ -3,14 +3,14 @@
 namespace Shipping\Application;
 
 use Billing\Domain\Event\OrderBilled;
-use Doctrine\DBAL\Connection;
 use Sales\Domain\Event\OrderPlaced;
 use Shared\Application\Saga;
 use Shared\Application\SagaContext;
-use Shared\Application\SagaState;
+use Shared\Application\SagaMapper;
+use Shared\Application\SagaMapperBuilder;
+use Shared\Application\SagaProviderInterface;
 use Shipping\Domain\Command\ShipOrder;
 use Symfony\Component\Messenger\MessageBusInterface;
-use Symfony\Component\Uid\Ulid;
 
 /**
  * An order is shipped when it is both accepted and billed.
@@ -19,12 +19,20 @@ class ShippingPolicy extends Saga
 {
     public function __construct(
         protected MessageBusInterface $commandBus,
-        protected Connection $dbConnection,
+        SagaProviderInterface $sagaProvider, // ou directement une implémentation spécifique
     ) {
-        parent::__construct(ShippingPolicyState::class);
+        parent::__construct(ShippingPolicyState::class, $sagaProvider);
     }
 
-    public static function getHandledMessages(): iterable
+    protected static function configureMapping(): SagaMapper
+    {
+        return SagaMapperBuilder::stateCorrelationIdField('orderId')
+            ->messageCorrelationIdField(OrderPlaced::class, 'orderId')
+            ->messageCorrelationIdField(OrderBilled::class, 'orderId')
+            ->build();
+    }
+
+    protected static function getHandleMessages(): array
     {
         return [OrderBilled::class, OrderPlaced::class];
     }
@@ -32,7 +40,7 @@ class ShippingPolicy extends Saga
     protected function handleOrderBilled(OrderBilled $event, ShippingPolicyState $state, SagaContext $sagaContext): void
     {
         $this->logger->info('Received OrderBilled, orderId={orderId}', [
-            'orderId' => $event->orderId,
+            'orderId' => $event->orderId->toRfc4122(),
         ]);
 
         $state->orderBilled = true;
@@ -43,7 +51,7 @@ class ShippingPolicy extends Saga
     protected function handleOrderPlaced(OrderPlaced $event, ShippingPolicyState $state, SagaContext $sagaContext): void
     {
         $this->logger->info('Received OrderPlaced, orderId={orderId}', [
-            'orderId' => $event->orderId,
+            'orderId' => $event->orderId->toRfc4122(),
         ]);
 
         $state->orderPlaced = true;
@@ -54,7 +62,7 @@ class ShippingPolicy extends Saga
     private function processOrder(ShippingPolicyState $state, SagaContext $sagaContext): void
     {
         if ($state->orderPlaced && $state->orderBilled) {
-            $this->commandBus->dispatch(new ShipOrder($state->orderId->toRfc4122()));
+            $this->commandBus->dispatch(new ShipOrder($state->orderId));
             $sagaContext->markAsCompleted();
         }
     }
@@ -62,39 +70,5 @@ class ShippingPolicy extends Saga
     protected function canStartSaga(object $message): bool
     {
         return $message instanceof OrderPlaced || $message instanceof OrderBilled;
-    }
-
-    protected function findState(object $message, ?Ulid $sagaId): ?ShippingPolicyState
-    {
-        if ($message instanceof OrderPlaced || $message instanceof OrderBilled) {
-            $row = $this->dbConnection->fetchAssociative('SELECT * FROM shipping_policy_state WHERE correlation_order_id = :order_id', [
-                'order_id' => Ulid::fromString($message->orderId)->toBinary(),
-            ]);
-        } else {
-            // TODO : not configured mapping
-            $row = $this->dbConnection->fetchAssociative('SELECT * FROM shipping_policy_state WHERE id = :id', [
-                'id' => $sagaId?->toBinary(),
-            ]);
-        }
-        if (!$row) {
-            return null;
-        }
-
-        return ShippingPolicyState::fromRow($row);
-    }
-
-    protected function saveState(SagaState $state): void
-    {
-        $this->dbConnection->executeStatement(<<<SQL
-                INSERT INTO shipping_policy_state (id, correlation_order_id, state)
-                VALUES (:id, :correlation_order_id, :state) ON DUPLICATE KEY UPDATE state = :state
-            SQL, $state->toRow());
-    }
-
-    protected function deleteState(SagaState $state): void
-    {
-        $this->dbConnection->delete('shipping_policy_state', [
-            'id' => $state->id->toBinary(),
-        ]);
     }
 }

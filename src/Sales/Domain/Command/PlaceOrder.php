@@ -2,10 +2,12 @@
 
 namespace Sales\Domain\Command;
 
+use Symfony\Component\Uid\Ulid;
+
 final class PlaceOrder
 {
     public function __construct(
-        public readonly string $orderId,
+        public readonly Ulid $orderId,
     ) {
     }
 }

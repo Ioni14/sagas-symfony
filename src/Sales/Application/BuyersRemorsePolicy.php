@@ -2,23 +2,31 @@
 
 namespace Sales\Application;
 
-use Doctrine\DBAL\Connection;
 use Sales\Domain\Command\CancelOrder;
 use Sales\Domain\Command\PlaceOrder;
 use Sales\Domain\Event\OrderPlaced;
 use Shared\Application\Saga;
 use Shared\Application\SagaContext;
-use Shared\Application\SagaState;
+use Shared\Application\SagaMapper;
+use Shared\Application\SagaMapperBuilder;
+use Shared\Application\SagaProviderInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
-use Symfony\Component\Uid\Ulid;
 
 class BuyersRemorsePolicy extends Saga
 {
     public function __construct(
         private MessageBusInterface $eventBus,
-        private Connection $dbConnection,
+        SagaProviderInterface $sagaProvider
     ) {
-        parent::__construct(BuyersRemorseState::class);
+        parent::__construct(BuyersRemorseState::class, $sagaProvider);
+    }
+
+    protected static function configureMapping(): SagaMapper
+    {
+        return SagaMapperBuilder::stateCorrelationIdField('orderId')
+            ->messageCorrelationIdField(PlaceOrder::class, 'orderId')
+            ->messageCorrelationIdField(CancelOrder::class, 'orderId')
+            ->build();
     }
 
     /**
@@ -27,15 +35,20 @@ class BuyersRemorsePolicy extends Saga
      *
      * ou Attribute les méthodes qu'on veut mettre comme handler
      */
-    public static function getHandledMessages(): iterable
+    protected static function getHandleMessages(): array
     {
-        return [ /* Message */ PlaceOrder::class, /* Timeout */ BuyersRemorseIsOver::class, /* Message */ CancelOrder::class];
+        return [PlaceOrder::class, CancelOrder::class];
+    }
+
+    protected static function getTimeoutMessages(): array
+    {
+        return [BuyersRemorseIsOver::class];
     }
 
     protected function handlePlaceOrder(PlaceOrder $command, BuyersRemorseState $state, SagaContext $sagaContext): void
     {
         $this->logger->info('Received PlaceOrder, orderId={orderId}', [
-            'orderId' => $command->orderId,
+            'orderId' => $command->orderId->toRfc4122(),
         ]);
 
         // on s'envoie un message à nous-mêmes dans le futur
@@ -50,7 +63,7 @@ class BuyersRemorsePolicy extends Saga
 
         // business logic for placing the order
 
-        $this->eventBus->dispatch(new OrderPlaced($state->orderId->toRfc4122()));
+        $this->eventBus->dispatch(new OrderPlaced($state->orderId));
 
         $sagaContext->markAsCompleted();
     }
@@ -64,43 +77,6 @@ class BuyersRemorsePolicy extends Saga
         // Possibly publish an OrderCancelled event?
 
         $sagaContext->markAsCompleted(); // va ignorer un éventuel BuyersRemorseIsOver
-    }
-
-    protected function findState(object $message, ?Ulid $sagaId): ?BuyersRemorseState
-    {
-        if ($message instanceof PlaceOrder || $message instanceof CancelOrder) {
-            $row = $this->dbConnection->fetchAssociative('SELECT * FROM buyers_remorse_state WHERE correlation_order_id = :order_id', [
-                'order_id' => Ulid::fromString($message->orderId)->toBinary(),
-            ]);
-        } else {
-            // TODO : not configured mapping
-            $row = $this->dbConnection->fetchAssociative('SELECT * FROM buyers_remorse_state WHERE id = :id', [
-                'id' => $sagaId?->toBinary(),
-            ]);
-        }
-        if (!$row) {
-            return null;
-        }
-
-        return BuyersRemorseState::fromRow($row);
-    }
-
-    /**
-     * @param BuyersRemorseState $state
-     */
-    protected function saveState(SagaState $state): void
-    {
-        $this->dbConnection->executeStatement(<<<SQL
-                INSERT INTO buyers_remorse_state (id, correlation_order_id, state)
-                VALUES (:id, :correlation_order_id, :state) ON DUPLICATE KEY UPDATE correlation_order_id = :correlation_order_id,  state = :state
-            SQL, $state->toRow());
-    }
-
-    protected function deleteState(SagaState $state): void
-    {
-        $this->dbConnection->delete('buyers_remorse_state', [
-            'id' => $state->id?->toBinary(),
-        ]);
     }
 
     protected function canStartSaga(object $message): bool

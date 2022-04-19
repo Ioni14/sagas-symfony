@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "17414690c36689cc33ef0026ffd65c97",
+    "content-hash": "fa63253c9bf55cae215546949b2380a6",
     "packages": [
         {
             "name": "doctrine/annotations",
@@ -1972,6 +1972,49 @@
                 "source": "https://github.com/php-fig/log/tree/3.0.0"
             },
             "time": "2021-07-14T16:46:02+00:00"
+        },
+        {
+            "name": "stechstudio/backoff",
+            "version": "1.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/stechstudio/backoff.git",
+                "reference": "816e46107a6be2e1072ba0ff2cb26034872dfa49"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/stechstudio/backoff/zipball/816e46107a6be2e1072ba0ff2cb26034872dfa49",
+                "reference": "816e46107a6be2e1072ba0ff2cb26034872dfa49",
+                "shasum": ""
+            },
+            "require-dev": {
+                "phpunit/phpunit": "5.5.*"
+            },
+            "type": "library",
+            "autoload": {
+                "files": [
+                    "src/helpers.php"
+                ],
+                "psr-4": {
+                    "STS\\Backoff\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Joseph Szobody",
+                    "email": "joseph@stechstudio.com"
+                }
+            ],
+            "description": "PHP library providing retry functionality with multiple backoff strategies and jitter support",
+            "support": {
+                "issues": "https://github.com/stechstudio/backoff/issues",
+                "source": "https://github.com/stechstudio/backoff/tree/1.2"
+            },
+            "time": "2020-12-26T14:57:10+00:00"
         },
         {
             "name": "symfony/amqp-messenger",

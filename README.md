@@ -9,7 +9,8 @@ Par convention on va utiliser le suffixe Policy pour nos Sagas "Observer". Exemp
 
     docker-compose up -d
 
-    bin/console doctrine:database:create
+    bin/console messenger:setup-transports
+    bin/console doctrine:database:create --if-not-exists
     bin/console doctrine:migrations:migrate -n
     bin/console doctrine:query:sql "insert into shipping_policy_state(id,correlation_order_id,state) values (UuidToBin('00000000-0000-0000-0000-000000000001'), UuidToBin('00000000-0000-0000-0000-000000000001'), '{\"order_placed\":true,\"order_billed\":false}');"
 
@@ -21,3 +22,11 @@ Par convention on va utiliser le suffixe Policy pour nos Sagas "Observer". Exemp
     bin/console app:place-order 00000000-0000-0000-0000-000000000001 -vv
     # Cancel within 5 seconds... or not.
     bin/console app:cancel-order 00000000-0000-0000-0000-000000000001 -vv
+
+### TODO :
+
+* SagaProvider implementations : Doctrine DBAL / PDO, Redis ...
+* Reply To Sender (for async request/response messages)
+* SF Profiler integration (i.e. DataCollector)
+* Dashboard for monitoring (débits, messages en attente, temps de traitement...)
+

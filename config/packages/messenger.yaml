@@ -10,21 +10,39 @@ framework:
                 middleware:
 #                    - 'app.messenger.handle_saga'
 
-        failure_transport: failed
+        failure_transport: failed_default
         transports:
-            failed: '%env(FAILED_TRANSPORT_DSN)%'
+            failed_default: '%env(FAILED_TRANSPORT_DSN)%'
+            sales_failed: '%env(SALES_FAILED_TRANSPORT_DSN)%'
+            billing_failed: '%env(BILLING_FAILED_TRANSPORT_DSN)%'
+            shipping_failed: '%env(SHIPPING_FAILED_TRANSPORT_DSN)%'
 #            outbox:
 #                dsn: '%env(OUTBOX_TRANSPORT_DSN)%'
             billing_events:
                 dsn: '%env(BILLING_EVENTS_TRANSPORT_DSN)%'
+                failure_transport: billing_failed
+                retry_strategy: # delayed retry (for semi-transient errors)
+                    delay: 10000
             sales_events:
                 dsn: '%env(SALES_EVENTS_TRANSPORT_DSN)%'
+                failure_transport: sales_failed
+                retry_strategy:
+                    delay: 10000
             sales_commands:
                 dsn: '%env(SALES_COMMANDS_TRANSPORT_DSN)%'
+                failure_transport: sales_failed
+                retry_strategy:
+                    delay: 10000
             shipping_events:
                 dsn: '%env(SHIPPING_EVENTS_TRANSPORT_DSN)%'
+                failure_transport: shipping_failed
+                retry_strategy:
+                    delay: 10000
             shipping_commands:
                 dsn: '%env(SHIPPING_COMMANDS_TRANSPORT_DSN)%'
+                failure_transport: shipping_failed
+                retry_strategy:
+                    delay: 10000
         routing:
             Billing\Domain\Event\OrderBilled: billing_events
             Sales\Domain\Event\OrderPlaced: sales_events

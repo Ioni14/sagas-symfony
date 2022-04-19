@@ -51,6 +51,14 @@ class BuyersRemorsePolicy extends Saga
             'orderId' => $command->orderId->toRfc4122(),
         ]);
 
+        // systemic exception
+//        throw new \Exception("Systemic error");
+
+        // transient exception
+//        if (mt_rand(0, 5) === 0) {
+//            throw new \Exception("Transient error");
+//        }
+
         // on s'envoie un message à nous-mêmes dans le futur
         $this->timeout($this->eventBus, $state, \DateInterval::createFromDateString('5 sec'), new BuyersRemorseIsOver());
     }

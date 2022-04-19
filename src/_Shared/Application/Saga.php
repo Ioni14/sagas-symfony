@@ -6,6 +6,8 @@ use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
 use Psr\Log\NullLogger;
 use Shared\Infrastructure\Messenger\SagaContextStamp;
+use STS\Backoff\Backoff;
+use STS\Backoff\Strategies\ExponentialStrategy;
 use Symfony\Component\Messenger\Handler\MessageSubscriberInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Stamp\DelayStamp;
@@ -19,10 +21,9 @@ abstract class Saga implements MessageSubscriberInterface, LoggerAwareInterface
     use LoggerAwareTrait;
 
     public function __construct(
-        private                       readonly string $stateClass,
-        private SagaProviderInterface $sagaProvider,
-    )
-    {
+        private readonly string $stateClass,
+        private readonly SagaProviderInterface $sagaProvider,
+    ) {
         $this->logger = new NullLogger();
     }
 
@@ -79,7 +80,7 @@ abstract class Saga implements MessageSubscriberInterface, LoggerAwareInterface
             }
             $state = ($this->stateClass)::create();
             $state->id = new Ulid();
-            // TODO : other metadata
+            // TODO : other metadata like originator ?
 
             if (!property_exists($state, $mapping->stateCorrelationIdField())) {
                 throw new \RuntimeException('Saga state ' . $this->stateClass . ' does not have the mapped property ' . $mapping->stateCorrelationIdField() . '. Please check your Saga mapping.');
@@ -108,19 +109,61 @@ abstract class Saga implements MessageSubscriberInterface, LoggerAwareInterface
             'correlation_id' => $state->{$mapping->stateCorrelationIdField()},
             'message' => $sagaContext->message,
         ]);
-        try {
-            $this->$handlerName($sagaContext->message, $state, $sagaContext);
-        } catch (\Throwable $e) {
-            // TODO : on fait quoi avec le State si le message est full erreur ?
-            $this->logger->error('The Saga {sagaName} has failed when handling {message} : {exception}', [
+
+        // TODO : options for (enabling) Backoff. (passing options to parent::__construct() ? or wither injection ? and/or override method for strategy backoff, e.g. "only for the message X")
+        // https://docs.particular.net/tutorials/nservicebus-step-by-step/5-retrying-errors/#automatic-retries
+        $backoff = new Backoff(5, new ExponentialStrategy(100), 10000, true);
+        $backoff->setErrorHandler(function (\Throwable $exception, int $attempt, int $maxAttempts) use ($handlerName, $state, $mapping, $sagaContext): void {
+            if (!$this->logger) {
+                return;
+            }
+            $this->logger->warning("Retry Saga {sagaName} handler {handlerName} {attempt} / {maxAttempts} : {$exception->getMessage()}", [
+                'exception' => $exception,
+                'attempt' => $attempt,
+                'maxAttempts' => $maxAttempts - 1,
+                'handlerName' => $handlerName,
                 'sagaName' => static::class,
                 'sagaId' => $state->id,
                 'correlation_id' => $state->{$mapping->stateCorrelationIdField()},
                 'message' => $sagaContext->message,
-                'exception' => $e,
             ]);
-            throw $e;
+        });
+        try {
+            $backoff->run(function () use ($handlerName, $sagaContext, $state) {
+                $this->$handlerName($sagaContext->message, $state, $sagaContext);
+            });
+        } catch (\Throwable $e) {
+            $this->logger->error('The Saga {sagaName} handler {handlerName} has failed when handling '.$sagaContext->message::class.' : ' . $e->getMessage(), [
+                'exception' => $e,
+                'handlerName' => $handlerName,
+                'sagaName' => static::class,
+                'sagaId' => $state->id->toRfc4122(),
+                'correlation_id' => $state->{$mapping->stateCorrelationIdField()},
+                'message' => $sagaContext->message,
+            ]);
+            throw new FailedSagaHandlerException("The Saga ".static::class." handler {$handlerName} has failed when handling ".$sagaContext->message::class." : {$e->getMessage()}",
+                $handlerName,
+                static::class,
+                $state->id,
+                $state->{$mapping->stateCorrelationIdField()},
+                $sagaContext->message,
+                previous: $e,
+            );
         }
+
+//        try {
+//            $this->$handlerName($sagaContext->message, $state, $sagaContext);
+//        } catch (\Throwable $e) {
+//            // TODO : on fait quoi avec le State si le message est full erreur ?
+//            $this->logger->error('The Saga {sagaName} has failed when handling {message} : '.$e->getMessage(), [
+//                'sagaName' => static::class,
+//                'sagaId' => $state->id,
+//                'correlation_id' => $state->{$mapping->stateCorrelationIdField()},
+//                'message' => $sagaContext->message,
+//                'exception' => $e,
+//            ]);
+//            throw $e;
+//        }
 
         if (!$sagaContext->isCompleted()) {
             $this->sagaProvider->saveState($state);

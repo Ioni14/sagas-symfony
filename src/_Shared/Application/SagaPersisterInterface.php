@@ -4,7 +4,7 @@ namespace Shared\Application;
 
 use Symfony\Component\Uid\AbstractUid;
 
-interface SagaProviderInterface
+interface SagaPersisterInterface
 {
     public function findStateByCorrelationId(object $message, string $stateClass, SagaMapper $sagaMapper): ?SagaState;
 
@@ -13,4 +13,6 @@ interface SagaProviderInterface
     public function saveState(SagaState $state): void;
 
     public function deleteState(SagaState $state): void;
+
+    public function transactional(callable $callback): mixed;
 }

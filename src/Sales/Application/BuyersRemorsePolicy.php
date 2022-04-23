@@ -6,22 +6,27 @@ use Sales\Domain\Command\CancelOrder;
 use Sales\Domain\Command\PlaceOrder;
 use Sales\Domain\Event\OrderPlaced;
 use Shared\Application\Saga;
-use Shared\Application\SagaContext;
 use Shared\Application\SagaMapper;
 use Shared\Application\SagaMapperBuilder;
-use Shared\Application\SagaProviderInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 
+/**
+ * @implements Saga<BuyersRemorseState>
+ */
 class BuyersRemorsePolicy extends Saga
 {
     public function __construct(
         private MessageBusInterface $eventBus,
-        SagaProviderInterface $sagaProvider
     ) {
-        parent::__construct(BuyersRemorseState::class, $sagaProvider);
+        parent::__construct();
     }
 
-    protected static function configureMapping(): SagaMapper
+    public static function stateClass(): string
+    {
+        return BuyersRemorseState::class;
+    }
+
+    public static function mapping(): SagaMapper
     {
         return SagaMapperBuilder::stateCorrelationIdField('orderId')
             ->messageCorrelationIdField(PlaceOrder::class, 'orderId')
@@ -35,17 +40,17 @@ class BuyersRemorsePolicy extends Saga
      *
      * ou Attribute les méthodes qu'on veut mettre comme handler
      */
-    protected static function getHandleMessages(): array
+    public static function getHandledMessages(): array
     {
-        return [PlaceOrder::class, CancelOrder::class];
+        return [PlaceOrder::class, CancelOrder::class, BuyersRemorseIsOver::class];
     }
 
-    protected static function getTimeoutMessages(): array
+    public static function canStartSaga(object $message): bool
     {
-        return [BuyersRemorseIsOver::class];
+        return $message instanceof PlaceOrder;
     }
 
-    protected function handlePlaceOrder(PlaceOrder $command, BuyersRemorseState $state, SagaContext $sagaContext): void
+    protected function handlePlaceOrder(PlaceOrder $command): void
     {
         $this->logger->info('Received PlaceOrder, orderId={orderId}', [
             'orderId' => $command->orderId->toRfc4122(),
@@ -60,23 +65,26 @@ class BuyersRemorsePolicy extends Saga
 //        }
 
         // on s'envoie un message à nous-mêmes dans le futur
-        $this->timeout($this->eventBus, $state, \DateInterval::createFromDateString('5 sec'), new BuyersRemorseIsOver());
+//        $this->timeout($this->eventBus, $state, \DateInterval::createFromDateString('5 sec'), new BuyersRemorseIsOver());
+        $this->eventBus->dispatch(new OrderPlaced($this->state->orderId));
+
+        $this->markAsCompleted();
     }
 
-    protected function handleBuyersRemorseIsOver(BuyersRemorseIsOver $timeout, BuyersRemorseState $state, SagaContext $sagaContext): void
+    protected function handleBuyersRemorseIsOver(BuyersRemorseIsOver $timeout): void
     {
         $this->logger->info('Cooling down period for order {orderId}', [
-            'orderId' => $state->orderId->toRfc4122(),
+            'orderId' => $this->state->orderId->toRfc4122(),
         ]);
 
         // business logic for placing the order
 
-        $this->eventBus->dispatch(new OrderPlaced($state->orderId));
+        $this->eventBus->dispatch(new OrderPlaced($this->state->orderId));
 
-        $sagaContext->markAsCompleted();
+        $this->markAsCompleted();
     }
 
-    protected function handleCancelOrder(CancelOrder $command, BuyersRemorseState $state, SagaContext $sagaContext): void
+    protected function handleCancelOrder(CancelOrder $command): void
     {
         $this->logger->info('Order {orderId} was cancelled.', [
             'orderId' => $command->orderId,
@@ -84,11 +92,6 @@ class BuyersRemorsePolicy extends Saga
 
         // Possibly publish an OrderCancelled event?
 
-        $sagaContext->markAsCompleted(); // va ignorer un éventuel BuyersRemorseIsOver
-    }
-
-    protected function canStartSaga(object $message): bool
-    {
-        return $message instanceof PlaceOrder;
+        $this->markAsCompleted(); // va ignorer un éventuel BuyersRemorseIsOver
     }
 }

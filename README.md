@@ -25,8 +25,8 @@ Par convention on va utiliser le suffixe Policy pour nos Sagas "Observer". Exemp
 
 ### TODO :
 
-* SagaProvider implementations : Doctrine DBAL / PDO, Redis ...
+* SagaPersister implementations : Doctrine DBAL / PDO, Redis ...
 * Reply To Sender (for async request/response messages)
+* Monolog processor pour les métadonnées des sagas
 * SF Profiler integration (i.e. DataCollector)
 * Dashboard for monitoring (débits, messages en attente, temps de traitement...)
-

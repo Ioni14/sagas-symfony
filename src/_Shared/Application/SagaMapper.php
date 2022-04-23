@@ -8,8 +8,8 @@ class SagaMapper
      * @param string[] $messageCorrelationIdFields
      */
     public function __construct(
-        private string $stateCorrelationIdField,
-        private array $messageCorrelationIdFields = [],
+        private readonly string $stateCorrelationIdField,
+        private readonly array $messageCorrelationIdFields = [],
     ) {
     }
 

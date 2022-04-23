@@ -3,7 +3,7 @@
 namespace Shared\Infrastructure\Messenger;
 
 use Symfony\Component\Messenger\Stamp\StampInterface;
-use Symfony\Component\Uid\Ulid;
+use Symfony\Component\Uid\AbstractUid;
 
 /**
  * @internal
@@ -11,7 +11,7 @@ use Symfony\Component\Uid\Ulid;
 class SagaContextStamp implements StampInterface
 {
     public function __construct(
-        public readonly Ulid $sagaId,
+        public readonly AbstractUid $sagaId,
     ) {
     }
 }

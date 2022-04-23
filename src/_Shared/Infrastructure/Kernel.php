@@ -2,6 +2,7 @@
 
 namespace Shared\Infrastructure;
 
+use Shared\Application\Saga;
 use Shared\Infrastructure\Messenger\MessengerPass;
 use Symfony\Bundle\FrameworkBundle\Kernel\MicroKernelTrait;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -28,6 +29,6 @@ class Kernel extends BaseKernel
 
     protected function build(ContainerBuilder $container): void
     {
-        $container->addCompilerPass(new MessengerPass());
+        $container->registerForAutoconfiguration(Saga::class)->addTag('saga_handler');
     }
 }

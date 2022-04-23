@@ -4,10 +4,8 @@ namespace Shipping\Application;
 
 use Doctrine\DBAL\Connection;
 use Shared\Application\Saga;
-use Shared\Application\SagaContext;
 use Shared\Application\SagaMapper;
 use Shared\Application\SagaMapperBuilder;
-use Shared\Application\SagaProviderInterface;
 use Shipping\Application\Command\ShipWithAlpine;
 use Shipping\Application\Command\ShipWithMaple;
 use Shipping\Application\Event\ShipmentAcceptedByAlpine;
@@ -21,6 +19,7 @@ use Symfony\Component\Messenger\MessageBusInterface;
  * Try to ship to 3rd-party Maple Shipping Service,
  * Otherwise try to ship to 3rd-party Alpine Service,
  * Otherwise Fail.
+ * @implements Saga<ShipOrderState>
  */
 class ShipOrderWorkflow extends Saga
 {
@@ -28,12 +27,16 @@ class ShipOrderWorkflow extends Saga
         protected MessageBusInterface $commandBus,
         protected MessageBusInterface $eventBus,
         protected Connection $dbConnection,
-        SagaProviderInterface $sagaProvider
     ) {
-        parent::__construct(ShipOrderState::class, $sagaProvider);
+        parent::__construct();
     }
 
-    protected static function configureMapping(): SagaMapper
+    public static function stateClass(): string
+    {
+        return ShipOrderState::class;
+    }
+
+    public static function mapping(): SagaMapper
     {
         return SagaMapperBuilder::stateCorrelationIdField('orderId')
             ->messageCorrelationIdField(ShipOrder::class, 'orderId')
@@ -42,17 +45,17 @@ class ShipOrderWorkflow extends Saga
             ->build();
     }
 
-    protected static function getHandleMessages(): array
+    public static function getHandledMessages(): array
     {
-        return [ShipOrder::class, ShipmentAcceptedByMaple::class, ShipmentAcceptedByAlpine::class];
+        return [ShipOrder::class, ShipmentAcceptedByMaple::class, ShipmentAcceptedByAlpine::class, ShippingEscalation::class];
     }
 
-    protected static function getTimeoutMessages(): array
+    public static function canStartSaga(object $message): bool
     {
-        return [ShippingEscalation::class];
+        return $message instanceof ShipOrder;
     }
 
-    protected function handleShipOrder(ShipOrder $command, ShipOrderState $state, SagaContext $sagaContext): void
+    protected function handleShipOrder(ShipOrder $command): void
     {
         $this->logger->info('ShipOrderWorkflow for Order {orderId} - Trying Maple first.', [
             'orderId' => $command->orderId->toRfc4122(),
@@ -63,12 +66,12 @@ class ShipOrderWorkflow extends Saga
         $this->commandBus->dispatch(new ShipWithMaple($command->orderId));
 
         // Add timeout to escalate if Maple did not ship in time.
-        $this->timeout($this->commandBus, $state, \DateInterval::createFromDateString('20 sec'), new ShippingEscalation());
+        $this->timeout($this->commandBus, \DateInterval::createFromDateString('20 sec'), new ShippingEscalation());
     }
 
-    protected function handleShipmentAcceptedByMaple(ShipmentAcceptedByMaple $event, ShipOrderState $state, SagaContext $sagaContext): void
+    protected function handleShipmentAcceptedByMaple(ShipmentAcceptedByMaple $event): void
     {
-        if ($state->shipmentOrderSentToAlpine) {
+        if ($this->state->shipmentOrderSentToAlpine) {
             // too late, maintenant on deal avec Alpine
             return;
         }
@@ -77,58 +80,53 @@ class ShipOrderWorkflow extends Saga
             'orderId' => $event->orderId->toRfc4122(),
         ]);
 
-        $state->shipmentAcceptedByMaple = true;
+        $this->state->shipmentAcceptedByMaple = true;
 
         // TODO : test quand il y a au "même moment" (persist state...) : ShipmentAcceptedByMaple ET ShippingEscalation
-        $sagaContext->markAsCompleted();
+        $this->markAsCompleted();
     }
 
-    protected function handleShipmentAcceptedByAlpine(ShipmentAcceptedByAlpine $event, ShipOrderState $state, SagaContext $sagaContext): void
+    protected function handleShipmentAcceptedByAlpine(ShipmentAcceptedByAlpine $event): void
     {
         $this->logger->info('Order [{orderId}] - Successfully shipped with Alpine', [
             'orderId' => $event->orderId->toRfc4122(),
         ]);
 
-        $state->shipmentAcceptedByAlpine = true;
+        $this->state->shipmentAcceptedByAlpine = true;
 
         // maybe publish ShipmentAccepted ?
 
         // TODO : test quand il y a au "même moment" (persist state...) : ShipmentAcceptedByMaple ET ShippingEscalation
-        $sagaContext->markAsCompleted();
+        $this->markAsCompleted();
     }
 
-    protected function handleShippingEscalation(ShippingEscalation $timeout, ShipOrderState $state, SagaContext $sagaContext): void
+    protected function handleShippingEscalation(ShippingEscalation $timeout): void
     {
-        if ($state->shipmentAcceptedByMaple) {
+        if ($this->state->shipmentAcceptedByMaple) {
             return;
         }
 
-        if (!$state->shipmentOrderSentToAlpine) {
+        if (!$this->state->shipmentOrderSentToAlpine) {
             $this->logger->info("Order [{orderId}] - We didn't receive answer from Maple, let's try Alpine.", [
-                'orderId' => $state->orderId,
+                'orderId' => $this->state->orderId,
             ]);
 
-            $state->shipmentOrderSentToAlpine = true;
-//            $this->publish($this->commandBus, $state, new ShipWithAlpine($state->orderId->toRfc4122())); // TODO : if use Reply
-            $this->commandBus->dispatch(new ShipWithAlpine($state->orderId));
-            $this->timeout($this->commandBus, $state, \DateInterval::createFromDateString('20 sec'), new ShippingEscalation());
+            $this->state->shipmentOrderSentToAlpine = true;
+//            $this->publish($this->commandBus, $this->state, new ShipWithAlpine($this->state->orderId->toRfc4122())); // TODO : if use Reply
+            $this->commandBus->dispatch(new ShipWithAlpine($this->state->orderId));
+            $this->timeout($this->commandBus, \DateInterval::createFromDateString('20 sec'), new ShippingEscalation());
 
             return;
         }
 
-        if (!$state->shipmentAcceptedByAlpine) {
+        if (!$this->state->shipmentAcceptedByAlpine) {
             $this->logger->warning('Order [{orderId}] - No answer from Maple/Alpine. We need to escalate!', [
-                'orderId' => $state->orderId,
+                'orderId' => $this->state->orderId,
             ]);
 
-            $this->eventBus->dispatch(new ShipmentFailed($state->orderId));
+            $this->eventBus->dispatch(new ShipmentFailed($this->state->orderId));
 
-            $sagaContext->markAsCompleted();
+            $this->markAsCompleted();
         }
-    }
-
-    protected function canStartSaga(object $message): bool
-    {
-        return $message instanceof ShipOrder;
     }
 }

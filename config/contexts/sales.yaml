@@ -11,9 +11,3 @@ services:
         resource: '../../src/Sales/Application'
     Sales\Infrastructure\:
         resource: '../../src/Sales/Infrastructure'
-
-#    Sales\Application\BuyersRemorsePolicy:
-#        autoconfigure: false
-#        tags:
-#            - { name: 'messenger.message_handler', handles: Sales\Domain\Command\PlaceOrder }
-#            - { name: 'messenger.message_handler', handles: Sales\Application\BuyersRemorseIsOver }

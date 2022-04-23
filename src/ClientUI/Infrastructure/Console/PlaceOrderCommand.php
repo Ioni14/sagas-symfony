@@ -4,7 +4,6 @@ namespace ClientUI\Infrastructure\Console;
 
 use Psr\Log\LoggerInterface;
 use Sales\Domain\Command\PlaceOrder;
-use Shared\Application\SagaContext;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;

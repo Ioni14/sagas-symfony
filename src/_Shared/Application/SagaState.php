@@ -5,6 +5,7 @@ namespace Shared\Application;
 use Doctrine\ORM\Mapping\Column;
 use Doctrine\ORM\Mapping\Id;
 use Doctrine\ORM\Mapping\MappedSuperclass;
+use Doctrine\ORM\Mapping\Version;
 use Symfony\Component\Uid\Ulid;
 
 #[MappedSuperclass]
@@ -19,12 +20,25 @@ abstract class SagaState
     /** id of the message that started the saga. */
     public ?string $originalMessageId = null;
 
+    #[Version]
+    #[Column(type: "integer")]
+    private int $version = 1;
+    private bool $isNew = false;
+
     private function __construct()
     {
     }
 
     final public static function create(): static
     {
-        return new static();
+        $instance = new static();
+        $instance->isNew = true;
+
+        return $instance;
+    }
+
+    public function isNew(): bool
+    {
+        return $this->isNew;
     }
 }

@@ -5,9 +5,15 @@ framework:
             event.bus:
                 default_middleware: allow_no_handlers
                 middleware:
+                    - saga_transaction
+#                    - doctrine_transaction
+                    - saga_persistence
 #                    - 'app.messenger.handle_saga'
             command.bus:
                 middleware:
+                    - saga_transaction
+#                    - doctrine_transaction
+                    - saga_persistence
 #                    - 'app.messenger.handle_saga'
 
         failure_transport: failed_default
@@ -22,26 +28,31 @@ framework:
                 dsn: '%env(BILLING_EVENTS_TRANSPORT_DSN)%'
                 failure_transport: billing_failed
                 retry_strategy: # delayed retry (for semi-transient errors)
+                    max_retries: 0 # TODO : only for testing
                     delay: 10000
             sales_events:
                 dsn: '%env(SALES_EVENTS_TRANSPORT_DSN)%'
                 failure_transport: sales_failed
                 retry_strategy:
+                    max_retries: 0 # TODO : only for testing
                     delay: 10000
             sales_commands:
                 dsn: '%env(SALES_COMMANDS_TRANSPORT_DSN)%'
                 failure_transport: sales_failed
                 retry_strategy:
+                    max_retries: 0 # TODO : only for testing
                     delay: 10000
             shipping_events:
                 dsn: '%env(SHIPPING_EVENTS_TRANSPORT_DSN)%'
                 failure_transport: shipping_failed
                 retry_strategy:
+                    max_retries: 0 # TODO : only for testing
                     delay: 10000
             shipping_commands:
                 dsn: '%env(SHIPPING_COMMANDS_TRANSPORT_DSN)%'
                 failure_transport: shipping_failed
                 retry_strategy:
+                    max_retries: 0 # TODO : only for testing
                     delay: 10000
         routing:
             Billing\Domain\Event\OrderBilled: billing_events

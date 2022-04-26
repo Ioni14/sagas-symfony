@@ -2,41 +2,36 @@
 
 namespace Shared\Application;
 
-use Doctrine\ORM\Mapping\Column;
-use Doctrine\ORM\Mapping\Id;
-use Doctrine\ORM\Mapping\MappedSuperclass;
-use Doctrine\ORM\Mapping\Version;
+use Symfony\Component\Serializer\Annotation\Ignore;
 use Symfony\Component\Uid\Ulid;
 
-#[MappedSuperclass]
 abstract class SagaState
 {
-    /** unique identifier of the saga. */
-    #[Id]
-    #[Column(type: "ulid")]
-    public Ulid $id;
-    /** the endpoint that started the saga. */
-    public ?string $originator = null;
-    /** id of the message that started the saga. */
-    public ?string $originalMessageId = null;
+    #[Ignore]
+    protected Ulid $id;
 
-    #[Version]
-    #[Column(type: "integer")]
-    private int $version = 1;
+    #[Ignore]
     private bool $isNew = false;
 
-    private function __construct()
+    final private function __construct()
     {
     }
 
-    final public static function create(): static
+    final public static function create(Ulid $id): static
     {
         $instance = new static();
+        $instance->id = $id;
         $instance->isNew = true;
 
         return $instance;
     }
 
+    public function id(): Ulid
+    {
+        return $this->id;
+    }
+
+    #[Ignore]
     public function isNew(): bool
     {
         return $this->isNew;

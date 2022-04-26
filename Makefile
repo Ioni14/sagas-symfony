@@ -3,10 +3,10 @@
 up:
 	docker-compose up -d
 	composer install -o
-	sleep 2 # improve with container healthcheck
+	sleep 4 # improve with container healthcheck
 	bin/console messenger:setup-transports
 	bin/console doctrine:database:create --if-not-exists
-	bin/console doctrine:migrations:migrate -n
+	bin/console soa:saga:setup-tables
 
 .PHONY: db
 db:

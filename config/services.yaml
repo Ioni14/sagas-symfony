@@ -16,17 +16,6 @@ services:
 #        tags:
 #            - { name: messenger.message_handler, handles: '*' }
 
-    Shared\Application\SagaManager:
-        tags:
-            - { name: 'messenger.message_handler', handles: '*' }
-
-#    app.messenger.handle_saga:
-#    messenger.middleware.handle_message:
-#        abstract: true
-#        class: Shared\Infrastructure\Messenger\HandleSagaMiddleware
-#        arguments:
-#            - !abstract defined in MessengerPass
-
     saga_transaction:
         class: Shared\Infrastructure\Messenger\SagaTransactionMiddleware
     Shared\Infrastructure\Messenger\SagaTransactionMiddleware: '@saga_transaction'
@@ -36,4 +25,8 @@ services:
             $sagaHandlerPrototypes: !tagged_iterator saga_handler
     Shared\Infrastructure\Messenger\SagaPersistenceMiddleware: '@saga_persistence'
 
-    Shared\Application\SagaPersisterInterface: '@Shared\Infrastructure\DoctrineSagaPersister'
+    Shared\Infrastructure\Command\SetupSagaTablesCommand:
+        arguments:
+            $sagaHandlerPrototypes: !tagged_iterator saga_handler
+
+    Shared\Application\SagaPersisterInterface: '@Shared\Infrastructure\DoctrineSqlSagaPersister'

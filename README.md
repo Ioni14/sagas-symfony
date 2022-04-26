@@ -5,14 +5,7 @@ On peut penser à un Saga comme des règles à suivre (policies) car l'utilisati
 
 Par convention on va utiliser le suffixe Policy pour nos Sagas "Observer". Exemple: ShippingPolicy qui requiert que la commande soit à la fois "Placed" et "Billed" avant de l'envoyer. Et le suffixe Workflow pour nos Sagas "Commander".
 
-    composer install
-
-    docker-compose up -d
-
-    bin/console messenger:setup-transports
-    bin/console doctrine:database:create --if-not-exists
-    bin/console doctrine:migrations:migrate -n
-    bin/console doctrine:query:sql "insert into shipping_policy_state(id,correlation_order_id,state) values (UuidToBin('00000000-0000-0000-0000-000000000001'), UuidToBin('00000000-0000-0000-0000-000000000001'), '{\"order_placed\":true,\"order_billed\":false}');"
+    make up
 
     bin/console messenger:consume sales_commands -vv
     bin/console messenger:consume sales_events -vv
@@ -25,6 +18,8 @@ Par convention on va utiliser le suffixe Policy pour nos Sagas "Observer". Exemp
 
 ### TODO :
 
+* Specific logger channel
+* How to handle ghost state in persistance ?
 * SagaPersister implementations : Doctrine DBAL / PDO, Redis ...
 * Reply To Sender (for async request/response messages)
 * Monolog processor pour les métadonnées des sagas

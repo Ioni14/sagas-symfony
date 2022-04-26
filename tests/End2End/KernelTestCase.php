@@ -20,17 +20,13 @@ abstract class KernelTestCase extends BaseKernelTestCase
         parent::setUp();
         static::bootKernel();
         static::$connection = static::get(ManagerRegistry::class)->getConnection();
-        static::$connection->beginTransaction();
     }
 
-    protected function tearDown(): void
-    {
-        if (static::$connection->isTransactionActive()) {
-            static::$connection->rollBack();
-        }
-        parent::tearDown();
-    }
-
+    /**
+     * @template T
+     * @param class-string<T> $serviceId
+     * @return T|null
+     */
     protected static function get(string $serviceId): ?object
     {
         return static::getContainer()->get($serviceId);
@@ -47,19 +43,6 @@ abstract class KernelTestCase extends BaseKernelTestCase
         $command = $app->find($commandName);
 
         return new CommandTester($command);
-    }
-
-    protected static function loadSqlFixtures(string $filepath): void
-    {
-        static::$connection->executeStatement(file_get_contents(static::getFixturesPath().'/'.$filepath));
-    }
-
-    /**
-     * @return string the directory path of fixtures used to locate fixtures files
-     */
-    protected static function getFixturesPath(): string
-    {
-        return __DIR__.'/resources';
     }
 
     protected static function getAmqpConnection(string $transportId): AmqpConnection

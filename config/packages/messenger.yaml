@@ -65,6 +65,7 @@ framework:
             Shipping\Application\Command\ShipWithAlpine: shipping_commands
             Shipping\Application\Timeout\ShippingEscalation: shipping_events
             Shipping\Application\Event\ShipmentAcceptedByMaple: shipping_events
+            Shipping\Application\Event\ShipmentAcceptedByAlpine: shipping_events
             Shipping\Application\Event\ShipmentFailed: shipping_events
 
         serializer:

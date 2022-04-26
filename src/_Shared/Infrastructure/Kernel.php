@@ -30,5 +30,6 @@ class Kernel extends BaseKernel
     protected function build(ContainerBuilder $container): void
     {
         $container->registerForAutoconfiguration(Saga::class)->addTag('saga_handler');
+        $container->addCompilerPass(new MessengerPass(), priority: 16 /* higher than native MessengerPass */);
     }
 }

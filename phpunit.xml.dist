@@ -6,6 +6,7 @@
          backupGlobals="false"
          colors="true"
          bootstrap="tests/bootstrap.php"
+         executionOrder="random"
          convertDeprecationsToExceptions="false"
 >
     <php>

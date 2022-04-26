@@ -48,7 +48,7 @@ abstract class Saga implements LoggerAwareInterface
     final public function withSagaContext(SagaState $state): self
     {
         $that = clone $this;
-        $that->id = $state->id;
+        $that->id = $state->id();
         $that->state = $state;
 
         return $that;
@@ -120,7 +120,7 @@ abstract class Saga implements LoggerAwareInterface
             throw new FailedSagaHandlerException("The Saga " . static::class . " handler {$handlerName} has failed when handling " . $message::class . " : {$e->getMessage()}",
                 $handlerName,
                 static::class,
-                $this->state->id,
+                $this->state->id(),
                 $this->state->{$mapping->stateCorrelationIdField()},
                 $message,
                 previous: $e,

@@ -7,9 +7,10 @@ use Shared\Application\SagaHandler;
 use Shared\Application\SagaMapper;
 use Shared\Application\SagaMapperBuilder;
 use Tests\Acceptance\Saga\Message\BadMessageMappingMessage;
+use Tests\Acceptance\Saga\Message\NoHandlerMethodMessage;
 use Tests\Acceptance\Saga\State\IntegerState;
 
-class BadMessageMappingSaga extends Saga
+class NoHandlerMethodSaga extends Saga
 {
     public static function stateClass(): string
     {
@@ -18,23 +19,22 @@ class BadMessageMappingSaga extends Saga
 
     public static function canStartSaga(object $message): bool
     {
-        return $message instanceof BadMessageMappingMessage;
+        return $message instanceof NoHandlerMethodMessage;
     }
 
     public static function mapping(): SagaMapper
     {
         return SagaMapperBuilder::stateCorrelationIdField('myId')
-            ->messageCorrelationIdField(BadMessageMappingMessage::class, 'notId')
+            ->messageCorrelationIdField(NoHandlerMethodMessage::class, 'id')
             ->build();
     }
 
     public static function getHandledMessages(): array
     {
-        return [BadMessageMappingMessage::class];
+        return [NoHandlerMethodMessage::class];
     }
 
-    #[SagaHandler]
-    protected function handle(BadMessageMappingMessage $message): void
+    protected function handleBadNameMethod(NoHandlerMethodMessage $message): void
     {
         $this->markAsCompleted();
     }

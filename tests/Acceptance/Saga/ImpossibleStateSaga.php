@@ -3,6 +3,7 @@
 namespace Tests\Acceptance\Saga;
 
 use Shared\Application\Saga;
+use Shared\Application\SagaHandler;
 use Shared\Application\SagaMapper;
 use Shared\Application\SagaMapperBuilder;
 use Tests\Acceptance\Saga\Message\ImpossibleStateMessage;
@@ -32,7 +33,8 @@ class ImpossibleStateSaga extends Saga
         return [ImpossibleStateMessage::class];
     }
 
-    public function handleImpossibleStateMessage(ImpossibleStateMessage $message): void
+    #[SagaHandler]
+    protected function handle(ImpossibleStateMessage $message): void
     {
         $this->markAsCompleted();
     }

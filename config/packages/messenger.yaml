@@ -97,6 +97,7 @@ when@test_acceptance:
                 Tests\Acceptance\Saga\Message\BadStateMappingMessage: memory
                 Tests\Acceptance\Saga\Message\BadMessageMappingMessage: memory
                 Tests\Acceptance\Saga\Message\ImpossibleStateMessage: memory
+                Tests\Acceptance\Saga\Message\NoHandlerMethodMessage: memory
             serializer:
                 default_serializer: messenger.transport.symfony_serializer
                 symfony_serializer:

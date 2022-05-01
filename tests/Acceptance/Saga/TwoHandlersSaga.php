@@ -3,6 +3,7 @@
 namespace Tests\Acceptance\Saga;
 
 use Shared\Application\Saga;
+use Shared\Application\SagaHandler;
 use Shared\Application\SagaMapper;
 use Shared\Application\SagaMapperBuilder;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -39,12 +40,14 @@ class TwoHandlersSaga extends Saga
         return [TwoHandlerFirstMessage::class, TwoHandlerSecondMessage::class];
     }
 
-    public function handleTwoHandlerFirstMessage(TwoHandlerFirstMessage $message): void
+    #[SagaHandler]
+    protected function handleFirst(TwoHandlerFirstMessage $message): void
     {
         $this->publish($this->messageBus, new TwoHandlerSecondMessage($message->firstId));
     }
 
-    public function handleTwoHandlerSecondMessage(TwoHandlerSecondMessage $message): void
+    #[SagaHandler]
+    protected function handleSecond(TwoHandlerSecondMessage $message): void
     {
         $this->markAsCompleted();
     }

@@ -27,6 +27,8 @@ abstract class Saga implements LoggerAwareInterface
     protected SagaState $state;
     private bool $completed = false;
 
+    private static array $methodHandlers = [];
+
     public function __construct()
     {
         $this->logger = new NullLogger();
@@ -72,13 +74,45 @@ abstract class Saga implements LoggerAwareInterface
     {
         $mapping = static::mapping();
 
-        $shortClassName = substr($message::class, strrpos($message::class, '\\') + 1);
+        if (!isset(self::$methodHandlers[$message::class])) {
+            $methodToInvoke = null;
+            foreach ((new \ReflectionClass(static::class))->getMethods(\ReflectionMethod::IS_PUBLIC | \ReflectionMethod::IS_PROTECTED) as $method) {
+                $attributes = $method->getAttributes(SagaHandler::class);
+                if (!$attributes) {
+                    continue;
+                }
+                $params = $method->getParameters();
 
-        $handlerName = 'handle' . $shortClassName;
-        if (!method_exists($this, $handlerName)) {
-            // TODO : log or throw, cannot handle this message
-            throw new \RuntimeException("Cannot handle $shortClassName : no method $handlerName found in the Saga " . static::class);
+                $paramMessageType = $params[0]?->getType();
+                $messageTypes = [];
+                if ($paramMessageType instanceof \ReflectionNamedType) {
+                    $messageTypes[] = $paramMessageType->getName();
+                } elseif ($paramMessageType instanceof \ReflectionUnionType) {
+                    foreach ($paramMessageType->getTypes() as $type) {
+                        $messageTypes[] = $type->getName();
+                    }
+                }
+                foreach ($messageTypes as $messageType) {
+                    self::$methodHandlers[$messageType] = $method->getName();
+                    if (is_a($message, $messageType, true)) {
+                        $methodToInvoke = $method->getName();
+                    }
+                }
+            }
+
+            if ($methodToInvoke === null) {
+                $shortClassName = substr($message::class, strrpos($message::class, '\\') + 1);
+                $methodToInvoke = 'handle' . $shortClassName;
+                if (!method_exists($this, $methodToInvoke)) {
+                    throw new \RuntimeException(sprintf("Cannot handle %s by Saga %s : no method $methodToInvoke or attribute %s on a public or protected method with message typehint on first parameter.", $message::class, static::class, SagaHandler::class));
+                }
+            }
+
+            self::$methodHandlers[$message::class] = $methodToInvoke;
         }
+
+        $methodToInvoke = self::$methodHandlers[$message::class];
+
         $this->logger->info('The Saga {sagaName} handles {message}.', [
             'sagaName' => static::class,
             'sagaId' => $this->id,
@@ -89,7 +123,7 @@ abstract class Saga implements LoggerAwareInterface
         // TODO : options for (enabling) Backoff. (passing options to parent::__construct() ? or wither injection ? and/or override method for strategy backoff, e.g. "only for the message X")
         // https://docs.particular.net/tutorials/nservicebus-step-by-step/5-retrying-errors/#automatic-retries
         $backoff = new Backoff(5, new ExponentialStrategy(100), 10000, true);
-        $backoff->setErrorHandler(function (\Throwable $exception, int $attempt, int $maxAttempts) use ($handlerName, $mapping, $message): void {
+        $backoff->setErrorHandler(function (\Throwable $exception, int $attempt, int $maxAttempts) use ($methodToInvoke, $mapping, $message): void {
             if (!$this->logger) {
                 return;
             }
@@ -97,7 +131,7 @@ abstract class Saga implements LoggerAwareInterface
                 'exception' => $exception,
                 'attempt' => $attempt,
                 'maxAttempts' => $maxAttempts - 1,
-                'handlerName' => $handlerName,
+                'handlerName' => $methodToInvoke,
                 'sagaName' => static::class,
                 'sagaId' => $this->id,
                 'correlation_id' => $this->state->{$mapping->stateCorrelationIdField()},
@@ -105,20 +139,20 @@ abstract class Saga implements LoggerAwareInterface
             ]);
         });
         try {
-            $backoff->run(function () use ($handlerName, $message) {
-                $this->$handlerName($message);
+            $backoff->run(function () use ($methodToInvoke, $message) {
+                $this->$methodToInvoke($message);
             });
         } catch (\Throwable $e) {
             $this->logger->error('The Saga {sagaName} handler {handlerName} has failed when handling ' . $message::class . ' : ' . $e->getMessage(), [
                 'exception' => $e,
-                'handlerName' => $handlerName,
+                'handlerName' => $methodToInvoke,
                 'sagaName' => static::class,
                 'sagaId' => $this->id->toRfc4122(),
                 'correlation_id' => $this->state->{$mapping->stateCorrelationIdField()},
                 'message' => $message,
             ]);
-            throw new FailedSagaHandlerException("The Saga " . static::class . " handler {$handlerName} has failed when handling " . $message::class . " : {$e->getMessage()}",
-                $handlerName,
+            throw new FailedSagaHandlerException("The Saga " . static::class . " handler {$methodToInvoke} has failed when handling " . $message::class . " : {$e->getMessage()}",
+                $methodToInvoke,
                 static::class,
                 $this->state->id(),
                 $this->state->{$mapping->stateCorrelationIdField()},

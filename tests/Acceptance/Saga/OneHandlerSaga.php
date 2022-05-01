@@ -3,9 +3,11 @@
 namespace Tests\Acceptance\Saga;
 
 use Shared\Application\Saga;
+use Shared\Application\SagaHandler;
 use Shared\Application\SagaMapper;
 use Shared\Application\SagaMapperBuilder;
 use Tests\Acceptance\Saga\Message\OneHandlerFirstMessage;
+use Tests\Acceptance\Saga\Message\TwoHandlerFirstMessage;
 use Tests\Acceptance\Saga\State\StringState;
 
 class OneHandlerSaga extends Saga
@@ -32,7 +34,8 @@ class OneHandlerSaga extends Saga
         return [OneHandlerFirstMessage::class];
     }
 
-    public function handleOneHandlerFirstMessage(OneHandlerFirstMessage $message): void
+    #[SagaHandler]
+    protected function handle(OneHandlerFirstMessage $message): void
     {
         $this->markAsCompleted();
     }

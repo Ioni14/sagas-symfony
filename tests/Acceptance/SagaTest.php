@@ -2,6 +2,7 @@
 
 namespace Tests\Acceptance;
 
+use Shared\Application\SagaHandler;
 use Shared\Application\SagaPersisterInterface;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -14,8 +15,10 @@ use Tests\Acceptance\Saga\ImpossibleStateSaga;
 use Tests\Acceptance\Saga\Message\BadMessageMappingMessage;
 use Tests\Acceptance\Saga\Message\BadStateMappingMessage;
 use Tests\Acceptance\Saga\Message\ImpossibleStateMessage;
+use Tests\Acceptance\Saga\Message\NoHandlerMethodMessage;
 use Tests\Acceptance\Saga\Message\OneHandlerFirstMessage;
 use Tests\Acceptance\Saga\Message\TwoHandlerFirstMessage;
+use Tests\Acceptance\Saga\NoHandlerMethodSaga;
 use Tests\Acceptance\Saga\OneHandlerSaga;
 use Tests\Acceptance\Saga\State\IntegerState;
 use Tests\Acceptance\Saga\TwoHandlersSaga;
@@ -102,6 +105,20 @@ class SagaTest extends KernelTestCase
         $failedMessage = static::getFailedMessage();
         static::assertEquals($message, $failedMessage->getMessage());
         static::assertFailedMessage($failedMessage, 'Cannot determine how to find the saga state of '.ImpossibleStateSaga::class.' for message '.ImpossibleStateMessage::class.'. Please check the Saga mapping.');
+    }
+
+    public function test_saga_should_raise_error_for_no_handler_method_found(): void
+    {
+        $message = new NoHandlerMethodMessage(10);
+        static::get(MessageBusInterface::class)->dispatch($message);
+
+        $commandTester = static::createCommandTester('messenger:consume');
+        $commandTester->execute(['receivers' => ['memory'], '--limit' => '1', '--time-limit' => '3', '--no-reset' => true]);
+        static::assertSame(0, $commandTester->getStatusCode());
+
+        $failedMessage = static::getFailedMessage();
+        static::assertEquals($message, $failedMessage->getMessage());
+        static::assertFailedMessage($failedMessage, 'Cannot handle '.NoHandlerMethodMessage::class.' by Saga '.NoHandlerMethodSaga::class.' : no method handleNoHandlerMethodMessage or attribute '.SagaHandler::class.' on a public or protected method with message typehint on first parameter.');
     }
 
     protected static function getFailedMessage(): Envelope

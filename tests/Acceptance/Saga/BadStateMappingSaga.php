@@ -3,6 +3,7 @@
 namespace Tests\Acceptance\Saga;
 
 use Shared\Application\Saga;
+use Shared\Application\SagaHandler;
 use Shared\Application\SagaMapper;
 use Shared\Application\SagaMapperBuilder;
 use Tests\Acceptance\Saga\Message\BadStateMappingMessage;
@@ -32,7 +33,8 @@ class BadStateMappingSaga extends Saga
         return [BadStateMappingMessage::class];
     }
 
-    public function handleBadStateMappingMessage(BadStateMappingMessage $message): void
+    #[SagaHandler]
+    protected function handle(BadStateMappingMessage $message): void
     {
         $this->markAsCompleted();
     }

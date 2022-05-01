@@ -11,10 +11,6 @@ class SagaManager implements ResetInterface
      */
     private array $sagas = [];
 
-    public function __construct()
-    {
-    }
-
     public function addSaga(object $message, Saga $saga): void
     {
         // new Saga per couple message/handledSaga

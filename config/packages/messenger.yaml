@@ -83,7 +83,9 @@ when@test_acceptance:
                     middleware:
                         - saga_transaction
                         - saga_persistence
+            failure_transport: failed
             transports:
+                failed: 'in-memory://'
                 memory:
                     dsn: 'in-memory://'
                     retry_strategy:
@@ -92,6 +94,9 @@ when@test_acceptance:
                 Tests\Acceptance\Saga\Message\OneHandlerFirstMessage: memory
                 Tests\Acceptance\Saga\Message\TwoHandlerFirstMessage: memory
                 Tests\Acceptance\Saga\Message\TwoHandlerSecondMessage: memory
+                Tests\Acceptance\Saga\Message\BadStateMappingMessage: memory
+                Tests\Acceptance\Saga\Message\BadMessageMappingMessage: memory
+                Tests\Acceptance\Saga\Message\ImpossibleStateMessage: memory
             serializer:
                 default_serializer: messenger.transport.symfony_serializer
                 symfony_serializer:

@@ -5,34 +5,34 @@ namespace Tests\Acceptance\Saga;
 use Shared\Application\Saga;
 use Shared\Application\SagaMapper;
 use Shared\Application\SagaMapperBuilder;
-use Tests\Acceptance\Saga\Message\OneHandlerFirstMessage;
-use Tests\Acceptance\Saga\State\StringState;
+use Tests\Acceptance\Saga\Message\BadMessageMappingMessage;
+use Tests\Acceptance\Saga\State\IntegerState;
 
-class OneHandlerSaga extends Saga
+class BadMessageMappingSaga extends Saga
 {
     public static function stateClass(): string
     {
-        return StringState::class;
+        return IntegerState::class;
     }
 
     public static function canStartSaga(object $message): bool
     {
-        return $message instanceof OneHandlerFirstMessage;
+        return $message instanceof BadMessageMappingMessage;
     }
 
     public static function mapping(): SagaMapper
     {
         return SagaMapperBuilder::stateCorrelationIdField('myId')
-            ->messageCorrelationIdField(OneHandlerFirstMessage::class, 'id')
+            ->messageCorrelationIdField(BadMessageMappingMessage::class, 'notId')
             ->build();
     }
 
     public static function getHandledMessages(): array
     {
-        return [OneHandlerFirstMessage::class];
+        return [BadMessageMappingMessage::class];
     }
 
-    public function handleOneHandlerFirstMessage(OneHandlerFirstMessage $message): void
+    public function handleBadMessageMappingMessage(BadMessageMappingMessage $message): void
     {
         $this->markAsCompleted();
     }

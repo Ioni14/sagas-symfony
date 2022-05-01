@@ -3,6 +3,8 @@
 namespace Shared\Application;
 
 use Shared\Infrastructure\SagaCorrelationIdFormatter;
+use Symfony\Component\PropertyAccess\Exception\NoSuchPropertyException;
+use Symfony\Component\PropertyAccess\PropertyAccess;
 use Symfony\Component\Uid\AbstractUid;
 use Symfony\Component\Uid\Ulid;
 
@@ -56,7 +58,14 @@ class InMemorySagaPersister implements SagaPersisterInterface
             throw new \InvalidArgumentException(sprintf('Unable to determine message correlation id field for message %s. Please check the Saga mapping of %s.', $message::class, $sagaHandlerClass));
         }
 
-        $correlationValue = (new SagaCorrelationIdFormatter())->format($message->$messageCorrelationField);
+        $accessor = PropertyAccess::createPropertyAccessor();
+        try {
+            $rawCorrelationValue = $accessor->getValue($message, $messageCorrelationField);
+        } catch (NoSuchPropertyException $e) {
+            throw new BadSagaMappingException('Saga message ' . $message::class . ' does not have the mapped property ' . $messageCorrelationField . '. Please check your Saga mapping.', previous: $e);
+        }
+
+        $correlationValue = (new SagaCorrelationIdFormatter())->format($rawCorrelationValue);
 
         foreach ($this->states as $persistedState) {
             $persistedCorrelationValue = (new SagaCorrelationIdFormatter())->format($persistedState->$stateCorrelationField);

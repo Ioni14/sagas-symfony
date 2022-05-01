@@ -6,11 +6,9 @@ use Shared\Application\Saga;
 use Shared\Application\SagaMapper;
 use Shared\Application\SagaMapperBuilder;
 use Symfony\Component\Messenger\MessageBusInterface;
-use Tests\Acceptance\Saga\Message\OneHandlerFirstMessage;
 use Tests\Acceptance\Saga\Message\TwoHandlerFirstMessage;
 use Tests\Acceptance\Saga\Message\TwoHandlerSecondMessage;
-use Tests\Acceptance\Saga\State\OneHandlerState;
-use Tests\Acceptance\Saga\State\TwoHandlerState;
+use Tests\Acceptance\Saga\State\IntegerState;
 
 class TwoHandlersSaga extends Saga
 {
@@ -20,7 +18,7 @@ class TwoHandlersSaga extends Saga
 
     public static function stateClass(): string
     {
-        return TwoHandlerState::class;
+        return IntegerState::class;
     }
 
     public static function canStartSaga(object $message): bool

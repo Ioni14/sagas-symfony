@@ -5,14 +5,18 @@ namespace Shared\Infrastructure\Messenger;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
 use Psr\Log\NullLogger;
+use Shared\Application\BadSagaMappingException;
 use Shared\Application\Saga;
 use Shared\Application\SagaManager;
 use Shared\Application\SagaPersisterInterface;
 use Shared\Application\SagaState;
 use Symfony\Component\Messenger\Envelope;
+use Symfony\Component\Messenger\Exception\UnrecoverableMessageHandlingException;
 use Symfony\Component\Messenger\Middleware\MiddlewareInterface;
 use Symfony\Component\Messenger\Middleware\StackInterface;
 use Symfony\Component\Messenger\Stamp\ReceivedStamp;
+use Symfony\Component\PropertyAccess\Exception\NoSuchPropertyException;
+use Symfony\Component\PropertyAccess\PropertyAccess;
 use Symfony\Component\Uid\Ulid;
 
 class SagaPersistenceMiddleware implements MiddlewareInterface, LoggerAwareInterface
@@ -62,7 +66,8 @@ class SagaPersistenceMiddleware implements MiddlewareInterface, LoggerAwareInter
             } elseif ($messageCorrelIdField !== null) {
                 $state = $this->sagaPersister->findStateByCorrelationId($message, $sagaHandlerClass);
             } else {
-                throw new UnableToFindSagaStateException($sagaId, $sagaHandlerClass, $message);
+                $ex = new UnableToFindSagaStateException($sagaHandlerClass, $message, sprintf('Cannot determine how to find the saga state of %s for message %s. Please check the Saga mapping.', $sagaHandlerClass, $message::class));
+                throw new UnrecoverableMessageHandlingException($ex->getMessage(), $ex->getCode(), $ex);
             }
 
             if (!$state) {
@@ -92,20 +97,26 @@ class SagaPersistenceMiddleware implements MiddlewareInterface, LoggerAwareInter
                 $state = ($stateClass)::create(new Ulid());
                 // TODO : other metadata like originator ?
 
-                // TODO : Property Accessor ?
                 $stateCorrelIdField = $mapping->stateCorrelationIdField();
-                if (!property_exists($state, $stateCorrelIdField)) {
-                    throw new \RuntimeException('Saga state ' . $stateClass . ' does not have the mapped property ' . $stateCorrelIdField . '. Please check your Saga mapping.');
+
+                $accessor = PropertyAccess::createPropertyAccessor();
+                try {
+                    $correlationValue = $accessor->getValue($message, $messageCorrelIdField);
+                } catch (NoSuchPropertyException $e) {
+                    $ex = new BadSagaMappingException('Saga message ' . $message::class . ' does not have the mapped property ' . $messageCorrelIdField . '. Please check your Saga mapping.', previous: $e);
+                    throw new UnrecoverableMessageHandlingException($ex->getMessage(), $ex->getCode(), $ex);
                 }
-                if (!property_exists($message, $messageCorrelIdField)) {
-                    throw new \RuntimeException('Saga message' . $message::class . ' does not have the mapped property ' . $messageCorrelIdField . '. Please check your Saga mapping.');
+                try {
+                    $accessor->setValue($state, $stateCorrelIdField, $correlationValue);
+                } catch (NoSuchPropertyException $e) {
+                    $ex = new BadSagaMappingException('Saga state ' . $stateClass . ' does not have the mapped property ' . $stateCorrelIdField . '. Please check your Saga mapping.', previous: $e);
+                    throw new UnrecoverableMessageHandlingException($ex->getMessage(), $ex->getCode(), $ex);
                 }
-                $state->{$stateCorrelIdField} = $message->{$messageCorrelIdField};
 
                 $this->logger->info('A new Saga {sagaName} has started.', [
                     'sagaName' => static::class,
                     'sagaId' => $state->id()->toRfc4122(),
-                    'correlation_id' => $state->{$stateCorrelIdField},
+                    'correlation_id' => $correlationValue,
                 ]);
             }
 

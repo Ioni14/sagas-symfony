@@ -19,7 +19,7 @@ Par convention on va utiliser le suffixe Policy pour nos Sagas "Observer". Exemp
 ### TODO :
 
 * Specific logger channel
-* How to handle ghost state in persistance ?
+* How to handle ghost state in persistance (states persisted forever) ? make a state cleaner ?
 * SagaPersister implementations : Doctrine DBAL / PDO, Redis ...
 * Reply To Sender (for async request/response messages)
 * Monolog processor pour les métadonnées des sagas

@@ -3,9 +3,12 @@
 namespace Shared\Infrastructure;
 
 use Doctrine\DBAL\Connection;
+use Shared\Application\BadSagaMappingException;
 use Shared\Application\Saga;
 use Shared\Application\SagaPersisterInterface;
 use Shared\Application\SagaState;
+use Symfony\Component\PropertyAccess\Exception\NoSuchPropertyException;
+use Symfony\Component\PropertyAccess\PropertyAccess;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Uid\AbstractUid;
 use Symfony\Component\Uid\Ulid;
@@ -118,7 +121,13 @@ default normalizers :
             throw new \InvalidArgumentException(sprintf('Unable to determine message correlation id field for message %s. Please check the Saga mapping of %s.', $message::class, $sagaHandlerClass));
         }
 
-        $correlationId = $message->$messageCorrelationField;
+        $accessor = PropertyAccess::createPropertyAccessor();
+        try {
+            $correlationId = $accessor->getValue($message, $messageCorrelationField);
+        } catch (NoSuchPropertyException $e) {
+            throw new BadSagaMappingException('Saga message ' . $message::class . ' does not have the mapped property ' . $messageCorrelationField . '. Please check your Saga mapping.', previous: $e);
+        }
+
         $correlationValue = (new SagaCorrelationIdFormatter())->format($correlationId);
 
         $stateClass = $sagaHandlerClass::stateClass();

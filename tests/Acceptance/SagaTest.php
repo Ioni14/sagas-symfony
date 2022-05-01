@@ -6,13 +6,18 @@ use Shared\Application\SagaPersisterInterface;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Console\Tester\CommandTester;
+use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\MessageBusInterface;
-use Symfony\Component\Uid\Ulid;
+use Symfony\Component\Messenger\Stamp\ErrorDetailsStamp;
+use Symfony\Component\Messenger\Transport\TransportInterface;
+use Tests\Acceptance\Saga\ImpossibleStateSaga;
+use Tests\Acceptance\Saga\Message\BadMessageMappingMessage;
+use Tests\Acceptance\Saga\Message\BadStateMappingMessage;
+use Tests\Acceptance\Saga\Message\ImpossibleStateMessage;
 use Tests\Acceptance\Saga\Message\OneHandlerFirstMessage;
 use Tests\Acceptance\Saga\Message\TwoHandlerFirstMessage;
 use Tests\Acceptance\Saga\OneHandlerSaga;
-use Tests\Acceptance\Saga\State\OneHandlerState;
-use Tests\Acceptance\Saga\State\TwoHandlerState;
+use Tests\Acceptance\Saga\State\IntegerState;
 use Tests\Acceptance\Saga\TwoHandlersSaga;
 
 class SagaTest extends KernelTestCase
@@ -44,7 +49,7 @@ class SagaTest extends KernelTestCase
         $commandTester->execute(['receivers' => ['memory'], '--limit' => '1', '--time-limit' => '3', '--no-reset' => true]);
         static::assertSame(0, $commandTester->getStatusCode());
 
-        /** @var TwoHandlerState $state */
+        /** @var IntegerState $state */
         $state = static::get(SagaPersisterInterface::class)->findStateByCorrelationId($message, TwoHandlersSaga::class);
         static::assertNotNull($state, 'State should not be deleted since Saga has not been completed.');
         static::assertSame(10, $state->myId);
@@ -55,6 +60,64 @@ class SagaTest extends KernelTestCase
 
         $state = static::get(SagaPersisterInterface::class)->findStateByCorrelationId($message, TwoHandlersSaga::class);
         static::assertNull($state, 'State should be deleted since Saga has been completed.');
+    }
+
+    public function test_saga_should_raise_error_for_bad_state_mapping(): void
+    {
+        $message = new BadStateMappingMessage(10);
+        static::get(MessageBusInterface::class)->dispatch($message);
+
+        $commandTester = static::createCommandTester('messenger:consume');
+        $commandTester->execute(['receivers' => ['memory'], '--limit' => '1', '--time-limit' => '3', '--no-reset' => true]);
+        static::assertSame(0, $commandTester->getStatusCode());
+
+        $failedMessage = static::getFailedMessage();
+        static::assertEquals($message, $failedMessage->getMessage());
+        static::assertFailedMessage($failedMessage, 'Saga state '.IntegerState::class.' does not have the mapped property notId. Please check your Saga mapping.');
+    }
+
+    public function test_saga_should_raise_error_for_bad_message_mapping(): void
+    {
+        $message = new BadMessageMappingMessage(10);
+        static::get(MessageBusInterface::class)->dispatch($message);
+
+        $commandTester = static::createCommandTester('messenger:consume');
+        $commandTester->execute(['receivers' => ['memory'], '--limit' => '1', '--time-limit' => '3', '--no-reset' => true]);
+        static::assertSame(0, $commandTester->getStatusCode());
+
+        $failedMessage = static::getFailedMessage();
+        static::assertEquals($message, $failedMessage->getMessage());
+        static::assertFailedMessage($failedMessage, 'Saga message '.BadMessageMappingMessage::class.' does not have the mapped property notId. Please check your Saga mapping.');
+    }
+
+    public function test_saga_should_raise_error_for_impossible_state_finding(): void
+    {
+        $message = new ImpossibleStateMessage(10);
+        static::get(MessageBusInterface::class)->dispatch($message);
+
+        $commandTester = static::createCommandTester('messenger:consume');
+        $commandTester->execute(['receivers' => ['memory'], '--limit' => '1', '--time-limit' => '3', '--no-reset' => true]);
+        static::assertSame(0, $commandTester->getStatusCode());
+
+        $failedMessage = static::getFailedMessage();
+        static::assertEquals($message, $failedMessage->getMessage());
+        static::assertFailedMessage($failedMessage, 'Cannot determine how to find the saga state of '.ImpossibleStateSaga::class.' for message '.ImpossibleStateMessage::class.'. Please check the Saga mapping.');
+    }
+
+    protected static function getFailedMessage(): Envelope
+    {
+        /** @var TransportInterface $failTransport */
+        $failTransport = static::get('messenger.transport.failed');
+        static::assertCount(1, $failedMessages = $failTransport->get());
+
+        return $failedMessages[0];
+    }
+
+    protected static function assertFailedMessage(Envelope $failedMessage, string $exceptionMessage): void
+    {
+        /** @var ErrorDetailsStamp $errorStamp */
+        $errorStamp = $failedMessage->last(ErrorDetailsStamp::class);
+        static::assertSame($exceptionMessage, $errorStamp->getExceptionMessage());
     }
 
     /**

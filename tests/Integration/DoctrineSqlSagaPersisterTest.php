@@ -3,7 +3,6 @@
 namespace Tests\Integration;
 
 use Shared\Infrastructure\DoctrineSqlSagaPersister;
-use Symfony\Component\Uid\AbstractUid;
 use Symfony\Component\Uid\Ulid;
 use Tests\End2End\KernelTestCase;
 use Tests\Integration\SagaHandler\DateTimeMessage;

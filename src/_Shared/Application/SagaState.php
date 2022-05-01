@@ -11,7 +11,7 @@ abstract class SagaState
     protected Ulid $id;
 
     #[Ignore]
-    private bool $isNew = false;
+    protected bool $isNew = false;
 
     final private function __construct()
     {

@@ -1,0 +1,12 @@
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    Tests\Acceptance\Saga\:
+        resource: '../tests/Acceptance/Saga/*'
+        exclude:
+            - '../tests/Acceptance/Saga/Message/*'
+
+    Shared\Application\InMemorySagaPersister: ~
+    Shared\Application\SagaPersisterInterface: '@Shared\Application\InMemorySagaPersister'

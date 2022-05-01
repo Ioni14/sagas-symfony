@@ -73,3 +73,27 @@ framework:
             symfony_serializer:
                 format: json
                 context: { }
+
+when@test_acceptance:
+    framework:
+        messenger:
+            default_bus: command.bus
+            buses:
+                command.bus:
+                    middleware:
+                        - saga_transaction
+                        - saga_persistence
+            transports:
+                memory:
+                    dsn: 'in-memory://'
+                    retry_strategy:
+                        max_retries: 0
+            routing:
+                Tests\Acceptance\Saga\Message\OneHandlerFirstMessage: memory
+                Tests\Acceptance\Saga\Message\TwoHandlerFirstMessage: memory
+                Tests\Acceptance\Saga\Message\TwoHandlerSecondMessage: memory
+            serializer:
+                default_serializer: messenger.transport.symfony_serializer
+                symfony_serializer:
+                    format: json
+                    context: { }

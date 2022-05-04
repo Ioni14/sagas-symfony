@@ -4,6 +4,7 @@ namespace Shipping\Application;
 
 use Doctrine\DBAL\Connection;
 use Shared\Application\Saga;
+use Shared\Application\SagaHandler;
 use Shared\Application\SagaMapper;
 use Shared\Application\SagaMapperBuilder;
 use Shipping\Application\Command\ShipWithAlpine;
@@ -55,6 +56,7 @@ class ShipOrderWorkflow extends Saga
         return $message instanceof ShipOrder;
     }
 
+    #[SagaHandler]
     protected function handleShipOrder(ShipOrder $command): void
     {
         $this->logger->info('ShipOrderWorkflow for Order {orderId} - Trying Maple first.', [
@@ -69,7 +71,8 @@ class ShipOrderWorkflow extends Saga
         $this->timeout($this->commandBus, \DateInterval::createFromDateString('20 sec'), new ShippingEscalation());
     }
 
-    protected function handleShipmentAcceptedByMaple(ShipmentAcceptedByMaple $event): void
+    #[SagaHandler]
+    protected function handleAcceptedByMaple(ShipmentAcceptedByMaple $event): void
     {
         if ($this->state->shipmentOrderSentToAlpine) {
             // too late, maintenant on deal avec Alpine
@@ -86,6 +89,7 @@ class ShipOrderWorkflow extends Saga
         $this->markAsCompleted();
     }
 
+    #[SagaHandler]
     protected function handleShipmentAcceptedByAlpine(ShipmentAcceptedByAlpine $event): void
     {
         $this->logger->info('Order [{orderId}] - Successfully shipped with Alpine', [
@@ -100,6 +104,7 @@ class ShipOrderWorkflow extends Saga
         $this->markAsCompleted();
     }
 
+    #[SagaHandler]
     protected function handleShippingEscalation(ShippingEscalation $timeout): void
     {
         if ($this->state->shipmentAcceptedByMaple) {

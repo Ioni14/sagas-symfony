@@ -14,13 +14,12 @@ class SagaManager implements ResetInterface
     public function addSaga(object $message, Saga $saga): void
     {
         // new Saga per couple message/handledSaga
-        $this->sagas[spl_object_hash($message)][$saga::class] = $saga;
+        $this->sagas[md5(serialize($message))][$saga::class] = $saga;
     }
 
-    // TODO : what if __invoke($message) is cloned from addSaga($message) ? damned :(
     public function __invoke(object $message): void
     {
-        foreach ($this->sagas[spl_object_hash($message)] ?? [] as $saga) {
+        foreach ($this->sagas[md5(serialize($message))] ?? [] as $saga) {
             ($saga)($message);
         }
     }
@@ -30,7 +29,7 @@ class SagaManager implements ResetInterface
      */
     public function getSagaHandlersFor(object $message): iterable
     {
-        return $this->sagas[spl_object_hash($message)] ?? [];
+        return $this->sagas[md5(serialize($message))] ?? [];
     }
 
     public function reset(): void

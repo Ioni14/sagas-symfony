@@ -18,12 +18,12 @@ services:
 
     saga_transaction:
         class: Shared\Infrastructure\Messenger\SagaTransactionMiddleware
-    Shared\Infrastructure\Messenger\SagaTransactionMiddleware: '@saga_transaction'
+#    Shared\Infrastructure\Messenger\SagaTransactionMiddleware: '@saga_transaction'
     saga_persistence:
         class: Shared\Infrastructure\Messenger\SagaPersistenceMiddleware
         arguments:
             $sagaHandlerPrototypes: !tagged_iterator saga_handler
-    Shared\Infrastructure\Messenger\SagaPersistenceMiddleware: '@saga_persistence'
+#    Shared\Infrastructure\Messenger\SagaPersistenceMiddleware: '@saga_persistence'
 
     Shared\Infrastructure\Command\SetupSagaTablesCommand:
         arguments:

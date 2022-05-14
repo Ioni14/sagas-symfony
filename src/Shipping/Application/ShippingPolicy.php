@@ -5,6 +5,7 @@ namespace Shipping\Application;
 use Billing\Domain\Event\OrderBilled;
 use Sales\Domain\Event\OrderPlaced;
 use Shared\Application\Saga;
+use Shared\Application\SagaHandler;
 use Shared\Application\SagaMapper;
 use Shared\Application\SagaMapperBuilder;
 use Shipping\Domain\Command\ShipOrder;
@@ -12,14 +13,13 @@ use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
  * An order is shipped when it is both accepted and billed.
- * @implements Saga<ShippingPolicyState>
+ * @implements SagaInterface<ShippingPolicyState>
  */
 class ShippingPolicy extends Saga
 {
     public function __construct(
         protected MessageBusInterface $commandBus,
     ) {
-        parent::__construct();
     }
 
     public static function stateClass(): string
@@ -45,7 +45,8 @@ class ShippingPolicy extends Saga
         return $message instanceof OrderPlaced || $message instanceof OrderBilled;
     }
 
-    protected function handleOrderBilled(OrderBilled $event): void
+    #[SagaHandler]
+    public function handleOrderBilled(OrderBilled $event): void
     {
         $this->logger->info('Received OrderBilled, orderId={orderId}', [
             'orderId' => $event->orderId->toRfc4122(),
@@ -56,7 +57,8 @@ class ShippingPolicy extends Saga
         $this->processOrder();
     }
 
-    protected function handleOrderPlaced(OrderPlaced $event): void
+    #[SagaHandler]
+    public function handleOrderPlaced(OrderPlaced $event): void
     {
         $this->logger->info('Received OrderPlaced, orderId={orderId}', [
             'orderId' => $event->orderId->toRfc4122(),

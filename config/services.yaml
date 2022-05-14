@@ -22,11 +22,13 @@ services:
     saga_persistence:
         class: Shared\Infrastructure\Messenger\SagaPersistenceMiddleware
         arguments:
-            $sagaHandlerPrototypes: !tagged_iterator saga_handler
+            - '@Shared\Application\SagaPersistenceInterface'
+            - '@Shared\Application\SagaManager'
+            - !tagged_iterator saga_handler
 #    Shared\Infrastructure\Messenger\SagaPersistenceMiddleware: '@saga_persistence'
 
     Shared\Infrastructure\Command\SetupSagaTablesCommand:
         arguments:
-            $sagaHandlerPrototypes: !tagged_iterator saga_handler
+            - !tagged_iterator saga_handler
 
-    Shared\Application\SagaPersisterInterface: '@Shared\Infrastructure\DoctrineSqlSagaPersister'
+    Shared\Application\SagaPersistenceInterface: '@Shared\Infrastructure\DoctrineSqlSagaPersistence'

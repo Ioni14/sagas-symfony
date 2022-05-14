@@ -2,17 +2,16 @@
 
 namespace Tests\Integration\SagaHandler;
 
-use Shared\Application\Saga;
 use Shared\Application\SagaMapper;
 use Shared\Application\SagaMapperBuilder;
 use Shared\Application\SagaState;
 use Shipping\Application\SagaInterface;
 
-class StringeableSagaHandler implements SagaInterface
+class BadTypedSagaHandler implements SagaInterface
 {
     public static function stateClass(): string
     {
-        return StringeableSagaState::class;
+        return BadTypedSagaState::class;
     }
 
     public static function canStartSaga(object $message): bool
@@ -23,7 +22,6 @@ class StringeableSagaHandler implements SagaInterface
     public static function mapping(): SagaMapper
     {
         return SagaMapperBuilder::stateCorrelationIdField('myId')
-            ->messageCorrelationIdField(StringeableMessage::class, 'messageMyId')
             ->build();
     }
 
@@ -33,20 +31,7 @@ class StringeableSagaHandler implements SagaInterface
     }
 }
 
-class DummyStringeable {
-    public function __toString() {
-        return 'foo';
-    }
-}
-
-class StringeableMessage
+class BadTypedSagaState extends SagaState
 {
-    public DummyStringeable $messageMyId;
-}
-
-class StringeableSagaState extends SagaState
-{
-    public DummyStringeable $myId;
-    public string $myName;
-    public bool $isActive;
+    public \stdClass $myId;
 }

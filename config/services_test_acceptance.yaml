@@ -8,5 +8,5 @@ services:
         exclude:
             - '../tests/Acceptance/Saga/Message/*'
 
-    Shared\Application\InMemorySagaPersister: ~
-    Shared\Application\SagaPersisterInterface: '@Shared\Application\InMemorySagaPersister'
+    Shared\Application\InMemorySagaPersistence: ~
+    Shared\Application\SagaPersistenceInterface: '@Shared\Application\InMemorySagaPersistence'

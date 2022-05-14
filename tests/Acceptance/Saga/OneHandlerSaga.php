@@ -2,15 +2,15 @@
 
 namespace Tests\Acceptance\Saga;
 
-use Shared\Application\Saga;
+use Shared\Application\SagaContext;
 use Shared\Application\SagaHandler;
 use Shared\Application\SagaMapper;
 use Shared\Application\SagaMapperBuilder;
+use Shipping\Application\SagaInterface;
 use Tests\Acceptance\Saga\Message\OneHandlerFirstMessage;
-use Tests\Acceptance\Saga\Message\TwoHandlerFirstMessage;
 use Tests\Acceptance\Saga\State\StringState;
 
-class OneHandlerSaga extends Saga
+class OneHandlerSaga implements SagaInterface
 {
     public static function stateClass(): string
     {
@@ -35,8 +35,8 @@ class OneHandlerSaga extends Saga
     }
 
     #[SagaHandler]
-    protected function handle(OneHandlerFirstMessage $message): void
+    public function handle(OneHandlerFirstMessage $message, SagaContext $context): void
     {
-        $this->markAsCompleted();
+        $context->markAsCompleted();
     }
 }

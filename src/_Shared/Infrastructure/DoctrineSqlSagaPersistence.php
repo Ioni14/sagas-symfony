@@ -5,47 +5,47 @@ namespace Shared\Infrastructure;
 use Doctrine\DBAL\Connection;
 use Shared\Application\BadSagaMappingException;
 use Shared\Application\Saga;
-use Shared\Application\SagaPersisterInterface;
+use Shared\Application\SagaPersistenceInterface;
 use Shared\Application\SagaState;
+use Shared\Application\UnableDetermineSqlTypeException;
+use Shipping\Application\SagaInterface;
 use Symfony\Component\PropertyAccess\Exception\NoSuchPropertyException;
 use Symfony\Component\PropertyAccess\PropertyAccess;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Uid\AbstractUid;
 use Symfony\Component\Uid\Ulid;
 
-class DoctrineSqlSagaPersister implements SagaPersisterInterface
+class DoctrineSqlSagaPersistence implements SagaPersistenceInterface
 {
+//    private Serializer $serializer;
+
     public function __construct(
         private readonly Connection $dbConnection,
         private readonly SerializerInterface $serializer, // TODO : init a custom Serializer with only the needed Normalizer&Encoder
     ) {
-        /*
-default normalizers :
-0 = {Symfony\Component\Serializer\Normalizer\UnwrappingDenormalizer} [2]
-1 = {Symfony\Component\Messenger\Transport\Serialization\Normalizer\FlattenExceptionNormalizer} [1]
-2 = {Symfony\Component\Serializer\Normalizer\ProblemNormalizer} [2]
-3 = {Symfony\Component\Serializer\Normalizer\UidNormalizer} [1]
-4 = {Symfony\Component\Serializer\Normalizer\JsonSerializableNormalizer} [4]
-5 = {Symfony\Component\Serializer\Normalizer\DateTimeNormalizer} [1]
-6 = {Symfony\Component\Serializer\Normalizer\ConstraintViolationListNormalizer} [2]
-7 = {Symfony\Component\Serializer\Normalizer\DateTimeZoneNormalizer} [0]
-8 = {Symfony\Component\Serializer\Normalizer\DateIntervalNormalizer} [1]
-9 = {Symfony\Component\Serializer\Normalizer\FormErrorNormalizer} [0]
-10 = {Symfony\Component\Serializer\Normalizer\BackedEnumNormalizer} [0]
-11 = {Symfony\Component\Serializer\Normalizer\DataUriNormalizer} [1]
-12 = {Symfony\Component\Serializer\Normalizer\ArrayDenormalizer} [1]
-13 = {Symfony\Component\Serializer\Normalizer\ObjectNormalizer} [12]
-         */
+        // TODO : create our proper serializer and inject it
+//        $this->serializer = new Serializer([
+//            new CustomNormalizer(),
+//            new UidNormalizer(),
+//            new JsonSerializableNormalizer(),
+//            new DateTimeNormalizer(),
+//            new DateTimeZoneNormalizer(),
+//            new DateIntervalNormalizer(),
+//            new BackedEnumNormalizer(),
+//            new DataUriNormalizer(),
+//            new ArrayDenormalizer(),
+//            new ObjectNormalizer(),
+//        ], [new JsonEncoder()]);
     }
 
     /**
-     * @param class-string<Saga> $sagaHandlerClass
+     * @param class-string<SagaInterface> $sagaHandlerClass
      *
      * TODO : decline in all SQL dialects (MySQL, MariaDB, PostgreSQL, SQLServer, Oracle...)
      */
     public function setup(string $sagaHandlerClass): void
     {
-        if (!is_a($sagaHandlerClass, Saga::class, true)) {
+        if (!is_a($sagaHandlerClass, SagaInterface::class, true)) {
             throw new \InvalidArgumentException('Argument $sagaHandlerClass must extends ' . Saga::class);
         }
 
@@ -70,11 +70,11 @@ default normalizers :
     }
 
     /**
-     * @param class-string<Saga> $sagaHandlerClass
+     * @param class-string<SagaInterface> $sagaHandlerClass
      */
     public function findStateBySagaId(AbstractUid $sagaId, string $sagaHandlerClass): ?SagaState
     {
-        if (!is_a($sagaHandlerClass, Saga::class, true)) {
+        if (!is_a($sagaHandlerClass, SagaInterface::class, true)) {
             throw new \InvalidArgumentException('Argument $sagaHandlerClass must extends ' . Saga::class);
         }
 
@@ -105,11 +105,11 @@ default normalizers :
     }
 
     /**
-     * @param class-string<Saga> $sagaHandlerClass
+     * @param class-string<SagaInterface> $sagaHandlerClass
      */
     public function findStateByCorrelationId(object $message, string $sagaHandlerClass): ?SagaState
     {
-        if (!is_a($sagaHandlerClass, Saga::class, true)) {
+        if (!is_a($sagaHandlerClass, SagaInterface::class, true)) {
             throw new \InvalidArgumentException('Argument $sagaHandlerClass must extends ' . Saga::class);
         }
 
@@ -152,9 +152,12 @@ default normalizers :
         return $state;
     }
 
+    /**
+     * @param class-string<SagaInterface> $sagaHandlerClass
+     */
     public function saveState(SagaState $state, object $message, string $sagaHandlerClass): void
     {
-        if (!is_a($sagaHandlerClass, Saga::class, true)) {
+        if (!is_a($sagaHandlerClass, SagaInterface::class, true)) {
             throw new \InvalidArgumentException('Argument $sagaHandlerClass must extends ' . Saga::class);
         }
 
@@ -163,11 +166,22 @@ default normalizers :
         $stateCorrelationField = $mapping->stateCorrelationIdField();
         $messageCorrelationField = $mapping->messageCorrelationIdField($message::class);
 
-        $stateCorrelationId = $state->$stateCorrelationField;
+        $accessor = PropertyAccess::createPropertyAccessor();
+        try {
+            $stateCorrelationId = $accessor->getValue($state, $stateCorrelationField);
+        } catch (NoSuchPropertyException $e) {
+            throw new BadSagaMappingException('Saga state ' . $state::class . ' does not have the correlation field ' . $stateCorrelationField . '. Please check your Saga mapping.', previous: $e);
+        }
+
         $correlationValue = (new SagaCorrelationIdFormatter())->format($stateCorrelationId);
 
         if ($messageCorrelationField !== null) {
-            $messageCorrelationId = $message->$messageCorrelationField;
+            try {
+                $messageCorrelationId = $accessor->getValue($message, $messageCorrelationField);
+            } catch (NoSuchPropertyException $e) {
+                throw new BadSagaMappingException('Saga message ' . $message::class . ' does not have the mapped property ' . $messageCorrelationField . '. Please check your Saga mapping.', previous: $e);
+            }
+
             // *** /!\ the operator != is used to compare 2 value objects (e.g. Uuid) ***
             if ($messageCorrelationId != $stateCorrelationId) {
                 throw new \RuntimeException(sprintf('Saga State Correlation ID %s::%s has changed to "%s". Please check the Saga %s.', $state::class, $stateCorrelationField, $correlationValue, $sagaHandlerClass,));
@@ -198,9 +212,12 @@ default normalizers :
         ]);
     }
 
+    /**
+     * @param class-string<SagaInterface> $sagaHandlerClass
+     */
     public function deleteState(SagaState $state, string $sagaHandlerClass): void
     {
-        if (!is_a($sagaHandlerClass, Saga::class, true)) {
+        if (!is_a($sagaHandlerClass, SagaInterface::class, true)) {
             throw new \InvalidArgumentException('Argument $sagaHandlerClass must extends ' . Saga::class);
         }
 
@@ -240,7 +257,7 @@ default normalizers :
             }
         }
         if ($sqlType === null) {
-            throw new \InvalidArgumentException('Unable to determine type of property ' . $stateClass . '::' . $stateCorrelationField . '. Please typehint one of ' . implode(', ', [AbstractUid::class, 'string', 'int', \DateTimeInterface::class]));
+            throw new UnableDetermineSqlTypeException('Unable to determine type of property ' . $stateClass . '::' . $stateCorrelationField . '. Please typehint one of ' . implode(', ', [AbstractUid::class, 'string', 'int', \DateTimeInterface::class]));
         }
 
         return $sqlType;

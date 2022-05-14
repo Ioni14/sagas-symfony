@@ -3,7 +3,7 @@
 namespace Tests\Acceptance;
 
 use Shared\Application\SagaHandler;
-use Shared\Application\SagaPersisterInterface;
+use Shared\Application\SagaPersistenceInterface;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Console\Tester\CommandTester;
@@ -39,7 +39,7 @@ class SagaTest extends KernelTestCase
         $commandTester->execute(['receivers' => ['memory'], '--limit' => '1', '--time-limit' => '3', '--no-reset' => true]);
         static::assertSame(0, $commandTester->getStatusCode());
 
-        $state = static::get(SagaPersisterInterface::class)->findStateByCorrelationId($message, OneHandlerSaga::class);
+        $state = static::get(SagaPersistenceInterface::class)->findStateByCorrelationId($message, OneHandlerSaga::class);
         static::assertNull($state, 'State should be deleted since Saga has been completed.');
     }
 
@@ -53,15 +53,16 @@ class SagaTest extends KernelTestCase
         static::assertSame(0, $commandTester->getStatusCode());
 
         /** @var IntegerState $state */
-        $state = static::get(SagaPersisterInterface::class)->findStateByCorrelationId($message, TwoHandlersSaga::class);
+        $state = static::get(SagaPersistenceInterface::class)->findStateByCorrelationId($message, TwoHandlersSaga::class);
         static::assertNotNull($state, 'State should not be deleted since Saga has not been completed.');
         static::assertSame(10, $state->myId);
 
         $commandTester = static::createCommandTester('messenger:consume');
         $commandTester->execute(['receivers' => ['memory'], '--limit' => '1', '--time-limit' => '3', '--no-reset' => true]);
+
         static::assertSame(0, $commandTester->getStatusCode());
 
-        $state = static::get(SagaPersisterInterface::class)->findStateByCorrelationId($message, TwoHandlersSaga::class);
+        $state = static::get(SagaPersistenceInterface::class)->findStateByCorrelationId($message, TwoHandlersSaga::class);
         static::assertNull($state, 'State should be deleted since Saga has been completed.');
     }
 
@@ -89,6 +90,7 @@ class SagaTest extends KernelTestCase
         static::assertSame(0, $commandTester->getStatusCode());
 
         $failedMessage = static::getFailedMessage();
+
         static::assertEquals($message, $failedMessage->getMessage());
         static::assertFailedMessage($failedMessage, 'Saga message '.BadMessageMappingMessage::class.' does not have the mapped property notId. Please check your Saga mapping.');
     }
@@ -125,7 +127,7 @@ class SagaTest extends KernelTestCase
     {
         /** @var TransportInterface $failTransport */
         $failTransport = static::get('messenger.transport.failed');
-        static::assertCount(1, $failedMessages = $failTransport->get());
+        static::assertCount(1, $failedMessages = $failTransport->get(), 'There are no failed messages.');
 
         return $failedMessages[0];
     }

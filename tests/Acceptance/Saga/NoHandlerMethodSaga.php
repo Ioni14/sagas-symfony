@@ -3,14 +3,16 @@
 namespace Tests\Acceptance\Saga;
 
 use Shared\Application\Saga;
+use Shared\Application\SagaContext;
 use Shared\Application\SagaHandler;
 use Shared\Application\SagaMapper;
 use Shared\Application\SagaMapperBuilder;
+use Shipping\Application\SagaInterface;
 use Tests\Acceptance\Saga\Message\BadMessageMappingMessage;
 use Tests\Acceptance\Saga\Message\NoHandlerMethodMessage;
 use Tests\Acceptance\Saga\State\IntegerState;
 
-class NoHandlerMethodSaga extends Saga
+class NoHandlerMethodSaga implements SagaInterface
 {
     public static function stateClass(): string
     {
@@ -34,8 +36,11 @@ class NoHandlerMethodSaga extends Saga
         return [NoHandlerMethodMessage::class];
     }
 
-    protected function handleBadNameMethod(NoHandlerMethodMessage $message): void
+    /*
+     * Pas de SagaHandler attribute
+     */
+    public function handleBadNameMethod(NoHandlerMethodMessage $message, SagaContext $context): void
     {
-        $this->markAsCompleted();
+        $context->markAsCompleted();
     }
 }

@@ -4,6 +4,7 @@ namespace Shared\Infrastructure\Messenger;
 
 use Shared\Application\Saga;
 use Shared\Application\SagaManager;
+use Shipping\Application\SagaInterface;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Definition;
@@ -23,8 +24,8 @@ class MessengerPass implements CompilerPassInterface
             $def = $container->getDefinition($serviceId);
             /** @var class-string<Saga> $class */
             $class = $def->getClass();
-            if (!is_a($class, Saga::class, true)) {
-                throw new \InvalidArgumentException($class . ' should extend '.Saga::class . ' because it has been tagged "saga_handler".');
+            if (!is_a($class, SagaInterface::class, true)) {
+                throw new \InvalidArgumentException($class . ' should implement '.SagaInterface::class . ' because it has been tagged "saga_handler".');
             }
             $handledMessages = array_merge($handledMessages, $class::getHandledMessages());
         }

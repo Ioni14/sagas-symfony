@@ -18,7 +18,6 @@ class BuyersRemorsePolicy extends Saga
     public function __construct(
         private MessageBusInterface $eventBus,
     ) {
-        parent::__construct();
     }
 
     public static function stateClass(): string

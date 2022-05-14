@@ -2,14 +2,15 @@
 
 namespace Tests\Acceptance\Saga;
 
-use Shared\Application\Saga;
+use Shared\Application\SagaContext;
 use Shared\Application\SagaHandler;
 use Shared\Application\SagaMapper;
 use Shared\Application\SagaMapperBuilder;
+use Shipping\Application\SagaInterface;
 use Tests\Acceptance\Saga\Message\ImpossibleStateMessage;
 use Tests\Acceptance\Saga\State\IntegerState;
 
-class ImpossibleStateSaga extends Saga
+class ImpossibleStateSaga implements SagaInterface
 {
     public static function stateClass(): string
     {
@@ -34,8 +35,8 @@ class ImpossibleStateSaga extends Saga
     }
 
     #[SagaHandler]
-    protected function handle(ImpossibleStateMessage $message): void
+    public function handle(ImpossibleStateMessage $message, SagaContext $context): void
     {
-        $this->markAsCompleted();
+        $context->markAsCompleted();
     }
 }

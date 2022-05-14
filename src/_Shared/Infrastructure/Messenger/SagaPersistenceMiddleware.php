@@ -8,8 +8,9 @@ use Psr\Log\NullLogger;
 use Shared\Application\BadSagaMappingException;
 use Shared\Application\Saga;
 use Shared\Application\SagaManager;
-use Shared\Application\SagaPersisterInterface;
+use Shared\Application\SagaPersistenceInterface;
 use Shared\Application\SagaState;
+use Shipping\Application\SagaInterface;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Exception\UnrecoverableMessageHandlingException;
 use Symfony\Component\Messenger\Middleware\MiddlewareInterface;
@@ -24,12 +25,12 @@ class SagaPersistenceMiddleware implements MiddlewareInterface, LoggerAwareInter
     use LoggerAwareTrait;
 
     /**
-     * @param Saga[] $sagaHandlerPrototypes
+     * @param iterable<SagaInterface> $sagaHandlerPrototypes
      */
     public function __construct(
-        private readonly SagaPersisterInterface $sagaPersister,
-        private readonly SagaManager $sagaManager,
-        private readonly iterable $sagaHandlerPrototypes,
+        private readonly SagaPersistenceInterface $sagaPersister,
+        private readonly SagaManager              $sagaManager,
+        private readonly iterable                 $sagaHandlerPrototypes,
     ) {
         $this->logger = new NullLogger();
     }
@@ -49,7 +50,7 @@ class SagaPersistenceMiddleware implements MiddlewareInterface, LoggerAwareInter
         }
 
         foreach ($this->sagaHandlerPrototypes as $sagaHandlerPrototype) {
-            if (!$sagaHandlerPrototype instanceof Saga) {
+            if (!$sagaHandlerPrototype instanceof SagaInterface) {
                 continue;
             }
 
@@ -120,17 +121,21 @@ class SagaPersistenceMiddleware implements MiddlewareInterface, LoggerAwareInter
                 ]);
             }
 
-            $sagaHandler = $sagaHandlerPrototype->withSagaContext($state);
+            if ($sagaHandlerPrototype instanceof Saga) {
+                $sagaHandler = $sagaHandlerPrototype->withSagaContext($state);
+            } else {
+                $sagaHandler = $sagaHandlerPrototype;
+            }
 
             // TODO : OK que tous les handlers partagent la même db transaction ou autre ? (cf. SagaManager::__invoke())
-            $this->sagaManager->addSaga($message, $sagaHandler);
+            $this->sagaManager->addSaga($message, $sagaHandler, $state);
         }
 
         $envelope = $stack->next()->handle($envelope, $stack);
 
-        foreach ($this->sagaManager->getSagaHandlersFor($message) as $sagaHandler) {
-            $state = $sagaHandler->state();
-            if (!$sagaHandler->isCompleted()) {
+        foreach ($this->sagaManager->getSagaHandlersFor($message) as ['saga' => $sagaHandler, 'context' => $context]) {
+            $state = $context->state;
+            if (!$context->isCompleted()) {
                 $this->sagaPersister->saveState($state, $message, $sagaHandler::class);
             } else {
                 if (!$state->isNew()) {

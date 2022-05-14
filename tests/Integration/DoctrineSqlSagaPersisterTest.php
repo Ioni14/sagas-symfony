@@ -2,9 +2,12 @@
 
 namespace Tests\Integration;
 
-use Shared\Infrastructure\DoctrineSqlSagaPersister;
+use Shared\Infrastructure\DoctrineSqlSagaPersistence;
+use Symfony\Component\Uid\AbstractUid;
 use Symfony\Component\Uid\Ulid;
 use Tests\End2End\KernelTestCase;
+use Tests\Integration\SagaHandler\BadTypedSagaHandler;
+use Tests\Integration\SagaHandler\BadTypedSagaState;
 use Tests\Integration\SagaHandler\DateTimeMessage;
 use Tests\Integration\SagaHandler\DatetimeSagaHandler;
 use Tests\Integration\SagaHandler\DummyStringeable;
@@ -24,7 +27,7 @@ class DoctrineSqlSagaPersisterTest extends KernelTestCase
     {
         static::$connection->executeStatement('DROP TABLE IF EXISTS tests_integration_sagahandler_intsagahandler');
 
-        $sagaPersister = static::get(DoctrineSqlSagaPersister::class);
+        $sagaPersister = static::get(DoctrineSqlSagaPersistence::class);
         $sagaPersister->setup(IntSagaHandler::class);
 
         $tableColumns = static::$connection->fetchAllAssociativeIndexed("
@@ -49,11 +52,20 @@ class DoctrineSqlSagaPersisterTest extends KernelTestCase
         ], $tableColumns['payload']);
     }
 
+    public function test_it_should_raise_an_error_when_bad_correlation_id_type(): void
+    {
+        static::$connection->executeStatement('DROP TABLE IF EXISTS tests_integration_sagahandler_badtypedsagahandler');
+
+        $sagaPersister = static::get(DoctrineSqlSagaPersistence::class);
+        $this->expectExceptionMessage(sprintf("Unable to determine type of property %s::myId. Please typehint one of %s, string, int, DateTimeInterface", BadTypedSagaState::class, AbstractUid::class));
+        $sagaPersister->setup(BadTypedSagaHandler::class);
+    }
+
     public function test_it_reads_saga_state_by_id(): void
     {
         static::$connection->executeStatement('DROP TABLE IF EXISTS tests_integration_sagahandler_intsagahandler');
 
-        $sagaPersister = static::get(DoctrineSqlSagaPersister::class);
+        $sagaPersister = static::get(DoctrineSqlSagaPersistence::class);
         $sagaPersister->setup(IntSagaHandler::class);
 
         static::$connection->executeStatement('
@@ -78,7 +90,7 @@ class DoctrineSqlSagaPersisterTest extends KernelTestCase
     {
         static::$connection->executeStatement('DROP TABLE IF EXISTS tests_integration_sagahandler_intsagahandler');
 
-        $sagaPersister = static::get(DoctrineSqlSagaPersister::class);
+        $sagaPersister = static::get(DoctrineSqlSagaPersistence::class);
         $sagaPersister->setup(IntSagaHandler::class);
 
         $persistedId = '00000000-0000-0000-0000-000000000001';
@@ -102,7 +114,7 @@ class DoctrineSqlSagaPersisterTest extends KernelTestCase
     {
         static::$connection->executeStatement('DROP TABLE IF EXISTS tests_integration_sagahandler_intsagahandler');
 
-        $sagaPersister = static::get(DoctrineSqlSagaPersister::class);
+        $sagaPersister = static::get(DoctrineSqlSagaPersistence::class);
         $sagaPersister->setup(IntSagaHandler::class);
 
         static::$connection->executeStatement('
@@ -130,7 +142,7 @@ class DoctrineSqlSagaPersisterTest extends KernelTestCase
     {
         static::$connection->executeStatement('DROP TABLE IF EXISTS tests_integration_sagahandler_stringeablesagahandler');
 
-        $sagaPersister = static::get(DoctrineSqlSagaPersister::class);
+        $sagaPersister = static::get(DoctrineSqlSagaPersistence::class);
         $sagaPersister->setup(StringeableSagaHandler::class);
 
         static::$connection->executeStatement('
@@ -158,7 +170,7 @@ class DoctrineSqlSagaPersisterTest extends KernelTestCase
     {
         static::$connection->executeStatement('DROP TABLE IF EXISTS tests_integration_sagahandler_datetimesagahandler');
 
-        $sagaPersister = static::get(DoctrineSqlSagaPersister::class);
+        $sagaPersister = static::get(DoctrineSqlSagaPersistence::class);
         $sagaPersister->setup(DatetimeSagaHandler::class);
 
         static::$connection->executeStatement('
@@ -186,7 +198,7 @@ class DoctrineSqlSagaPersisterTest extends KernelTestCase
     {
         static::$connection->executeStatement('DROP TABLE IF EXISTS tests_integration_sagahandler_uidsagahandler');
 
-        $sagaPersister = static::get(DoctrineSqlSagaPersister::class);
+        $sagaPersister = static::get(DoctrineSqlSagaPersistence::class);
         $sagaPersister->setup(UidSagaHandler::class);
 
         static::$connection->executeStatement('
@@ -214,7 +226,7 @@ class DoctrineSqlSagaPersisterTest extends KernelTestCase
     {
         static::$connection->executeStatement('DROP TABLE IF EXISTS tests_integration_sagahandler_uidsagahandler');
 
-        $sagaPersister = static::get(DoctrineSqlSagaPersister::class);
+        $sagaPersister = static::get(DoctrineSqlSagaPersistence::class);
         $sagaPersister->setup(UidSagaHandler::class);
 
         $state = UidSagaState::create(Ulid::fromString('00000000-0000-0000-0000-000000000001'));
@@ -239,7 +251,7 @@ class DoctrineSqlSagaPersisterTest extends KernelTestCase
     {
         static::$connection->executeStatement('DROP TABLE IF EXISTS tests_integration_sagahandler_uidsagahandler');
 
-        $sagaPersister = static::get(DoctrineSqlSagaPersister::class);
+        $sagaPersister = static::get(DoctrineSqlSagaPersistence::class);
         $sagaPersister->setup(UidSagaHandler::class);
 
         $state = UidSagaState::create(Ulid::fromString('00000000-0000-0000-0000-000000000001'));
@@ -265,7 +277,7 @@ class DoctrineSqlSagaPersisterTest extends KernelTestCase
     {
         static::$connection->executeStatement('DROP TABLE IF EXISTS tests_integration_sagahandler_uidsagahandler');
 
-        $sagaPersister = static::get(DoctrineSqlSagaPersister::class);
+        $sagaPersister = static::get(DoctrineSqlSagaPersistence::class);
         $sagaPersister->setup(UidSagaHandler::class);
 
         $state = UidSagaState::create(Ulid::fromString('00000000-0000-0000-0000-000000000001'));
@@ -292,7 +304,7 @@ class DoctrineSqlSagaPersisterTest extends KernelTestCase
     {
         static::$connection->executeStatement('DROP TABLE IF EXISTS tests_integration_sagahandler_uidsagahandler');
 
-        $sagaPersister = static::get(DoctrineSqlSagaPersister::class);
+        $sagaPersister = static::get(DoctrineSqlSagaPersistence::class);
         $sagaPersister->setup(UidSagaHandler::class);
 
         static::$connection->executeStatement('
@@ -326,7 +338,7 @@ class DoctrineSqlSagaPersisterTest extends KernelTestCase
     {
         static::$connection->executeStatement('DROP TABLE IF EXISTS tests_integration_sagahandler_uidsagahandler');
 
-        $sagaPersister = static::get(DoctrineSqlSagaPersister::class);
+        $sagaPersister = static::get(DoctrineSqlSagaPersistence::class);
         $sagaPersister->setup(UidSagaHandler::class);
 
         static::$connection->executeStatement('
@@ -363,7 +375,7 @@ class DoctrineSqlSagaPersisterTest extends KernelTestCase
     {
         static::$connection->executeStatement('DROP TABLE IF EXISTS tests_integration_sagahandler_uidsagahandler');
 
-        $sagaPersister = static::get(DoctrineSqlSagaPersister::class);
+        $sagaPersister = static::get(DoctrineSqlSagaPersistence::class);
         $sagaPersister->setup(UidSagaHandler::class);
 
         static::$connection->executeStatement('
@@ -399,7 +411,7 @@ class DoctrineSqlSagaPersisterTest extends KernelTestCase
     {
         static::$connection->executeStatement('DROP TABLE IF EXISTS tests_integration_sagahandler_uidsagahandler');
 
-        $sagaPersister = static::get(DoctrineSqlSagaPersister::class);
+        $sagaPersister = static::get(DoctrineSqlSagaPersistence::class);
         $sagaPersister->setup(UidSagaHandler::class);
 
         static::$connection->executeStatement('

@@ -3,16 +3,21 @@
 namespace Tests\Acceptance\Saga;
 
 use Shared\Application\Saga;
+use Shared\Application\SagaContext;
 use Shared\Application\SagaHandler;
 use Shared\Application\SagaMapper;
 use Shared\Application\SagaMapperBuilder;
+use Shipping\Application\SagaInterface;
+use Shipping\Application\SagaPublishTrait;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Tests\Acceptance\Saga\Message\TwoHandlerFirstMessage;
 use Tests\Acceptance\Saga\Message\TwoHandlerSecondMessage;
 use Tests\Acceptance\Saga\State\IntegerState;
 
-class TwoHandlersSaga extends Saga
+class TwoHandlersSaga implements SagaInterface
 {
+    use SagaPublishTrait;
+
     public function __construct(private readonly MessageBusInterface $messageBus)
     {
     }
@@ -41,14 +46,14 @@ class TwoHandlersSaga extends Saga
     }
 
     #[SagaHandler]
-    protected function handleFirst(TwoHandlerFirstMessage $message): void
+    public function handleFirst(TwoHandlerFirstMessage $message, SagaContext $context): void
     {
-        $this->publish($this->messageBus, new TwoHandlerSecondMessage($message->firstId));
+        $this->publish($this->messageBus, new TwoHandlerSecondMessage($message->firstId), $context);
     }
 
     #[SagaHandler]
-    protected function handleSecond(TwoHandlerSecondMessage $message): void
+    public function handleSecond(TwoHandlerSecondMessage $message, SagaContext $context): void
     {
-        $this->markAsCompleted();
+        $context->markAsCompleted();
     }
 }

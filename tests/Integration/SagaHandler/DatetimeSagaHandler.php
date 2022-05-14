@@ -6,8 +6,9 @@ use Shared\Application\Saga;
 use Shared\Application\SagaMapper;
 use Shared\Application\SagaMapperBuilder;
 use Shared\Application\SagaState;
+use Shipping\Application\SagaInterface;
 
-class DatetimeSagaHandler extends Saga
+class DatetimeSagaHandler implements SagaInterface
 {
     public static function stateClass(): string
     {

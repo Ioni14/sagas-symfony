@@ -4,7 +4,7 @@ namespace Shared\Infrastructure\Messenger;
 
 use Psr\Log\LoggerAwareTrait;
 use Psr\Log\NullLogger;
-use Shared\Application\SagaPersisterInterface;
+use Shared\Application\SagaPersistenceInterface;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Middleware\MiddlewareInterface;
 use Symfony\Component\Messenger\Middleware\StackInterface;
@@ -14,7 +14,7 @@ class SagaTransactionMiddleware implements MiddlewareInterface
 {
     use LoggerAwareTrait;
 
-    public function __construct(private SagaPersisterInterface $sagaPersister)
+    public function __construct(private SagaPersistenceInterface $sagaPersister)
     {
         $this->logger = new NullLogger();
     }

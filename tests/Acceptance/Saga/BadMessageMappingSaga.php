@@ -3,13 +3,15 @@
 namespace Tests\Acceptance\Saga;
 
 use Shared\Application\Saga;
+use Shared\Application\SagaContext;
 use Shared\Application\SagaHandler;
 use Shared\Application\SagaMapper;
 use Shared\Application\SagaMapperBuilder;
+use Shipping\Application\SagaInterface;
 use Tests\Acceptance\Saga\Message\BadMessageMappingMessage;
 use Tests\Acceptance\Saga\State\IntegerState;
 
-class BadMessageMappingSaga extends Saga
+class BadMessageMappingSaga implements SagaInterface
 {
     public static function stateClass(): string
     {
@@ -34,8 +36,8 @@ class BadMessageMappingSaga extends Saga
     }
 
     #[SagaHandler]
-    protected function handle(BadMessageMappingMessage $message): void
+    public function handle(BadMessageMappingMessage $message, SagaContext $context): void
     {
-        $this->markAsCompleted();
+        $context->markAsCompleted();
     }
 }

@@ -3,12 +3,13 @@
 namespace Shared\Application;
 
 use Shared\Infrastructure\SagaCorrelationIdFormatter;
+use Shipping\Application\SagaInterface;
 use Symfony\Component\PropertyAccess\Exception\NoSuchPropertyException;
 use Symfony\Component\PropertyAccess\PropertyAccess;
 use Symfony\Component\Uid\AbstractUid;
 use Symfony\Component\Uid\Ulid;
 
-class InMemorySagaPersister implements SagaPersisterInterface
+class InMemorySagaPersistence implements SagaPersistenceInterface
 {
     /**
      * @var SagaState[]
@@ -25,8 +26,8 @@ class InMemorySagaPersister implements SagaPersisterInterface
      */
     public function findStateBySagaId(AbstractUid $sagaId, string $sagaHandlerClass): ?SagaState
     {
-        if (!is_a($sagaHandlerClass, Saga::class, true)) {
-            throw new \InvalidArgumentException('Argument $sagaHandlerClass must extends '.Saga::class);
+        if (!is_a($sagaHandlerClass, SagaInterface::class, true)) {
+            throw new \InvalidArgumentException('Argument $sagaHandlerClass must implement '.SagaInterface::class);
         }
 
         foreach ($this->states as $persistedState) {
@@ -47,8 +48,8 @@ class InMemorySagaPersister implements SagaPersisterInterface
      */
     public function findStateByCorrelationId(object $message, string $sagaHandlerClass): ?SagaState
     {
-        if (!is_a($sagaHandlerClass, Saga::class, true)) {
-            throw new \InvalidArgumentException('Argument $sagaHandlerClass must extends '.Saga::class);
+        if (!is_a($sagaHandlerClass, SagaInterface::class, true)) {
+            throw new \InvalidArgumentException('Argument $sagaHandlerClass must implement '.SagaInterface::class);
         }
 
         $mapping = $sagaHandlerClass::mapping();
@@ -83,8 +84,8 @@ class InMemorySagaPersister implements SagaPersisterInterface
 
     public function saveState(SagaState $state, object $message, string $sagaHandlerClass): void
     {
-        if (!is_a($sagaHandlerClass, Saga::class, true)) {
-            throw new \InvalidArgumentException('Argument $sagaHandlerClass must extends '.Saga::class);
+        if (!is_a($sagaHandlerClass, SagaInterface::class, true)) {
+            throw new \InvalidArgumentException('Argument $sagaHandlerClass must implement '.SagaInterface::class);
         }
 
         $this->states[] = $state;
@@ -92,8 +93,8 @@ class InMemorySagaPersister implements SagaPersisterInterface
 
     public function deleteState(SagaState $state, string $sagaHandlerClass): void
     {
-        if (!is_a($sagaHandlerClass, Saga::class, true)) {
-            throw new \InvalidArgumentException('Argument $sagaHandlerClass must extends '.Saga::class);
+        if (!is_a($sagaHandlerClass, SagaInterface::class, true)) {
+            throw new \InvalidArgumentException('Argument $sagaHandlerClass must implement '.SagaInterface::class);
         }
 
         foreach ($this->states as $key => $persistedState) {
